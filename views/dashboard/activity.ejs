@@ -1,0 +1,30 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1>Журнал активности</h1>
+    <p class="page-subtitle">Отслеживайте каждое действие, выполняемое в вашем хранилище.</p>
+  </div>
+  <a class="btn btn-outline" href="/dashboard">Назад к диску</a>
+</section>
+<section class="timeline">
+  <% if (events && events.length) { %>
+  <ol>
+    <% events.forEach((event) => { %>
+    <li>
+      <div class="timeline-marker <%= event.level %>"></div>
+      <div class="timeline-content">
+        <time><%= new Date(event.timestamp).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) %></time>
+        <h3><%= event.level === 'security' ? 'Безопасность' : event.level === 'error' ? 'Ошибка' : 'Действие' %></h3>
+        <p><%= event.message %></p>
+        <% if (event.details) { %>
+        <pre class="timeline-meta"><%= JSON.stringify(event.details, null, 2) %></pre>
+        <% } %>
+      </div>
+    </li>
+    <% }); %>
+  </ol>
+  <% } else { %>
+  <p class="empty-state">Пока нет записей. Начните работу с файлами, чтобы увидеть историю активности.</p>
+  <% } %>
+</section>
+<%- include('../partials/layout-end') %>

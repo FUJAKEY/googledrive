@@ -1,0 +1,136 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1>Мой диск</h1>
+    <p class="page-subtitle">Управляйте файлами и папками с усиленной защитой.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="/files/upload?path=<%= encodeURIComponent(currentPath) %>">Загрузить файл</a>
+    <button class="btn btn-outline" type="button" data-dialog-open="create-folder">Новая папка</button>
+  </div>
+</section>
+<%- include('../partials/breadcrumbs', { breadcrumbs }) %>
+<section class="stats">
+  <article class="stat-card">
+    <h2>Всего файлов</h2>
+    <p class="stat-value"><%= stats.totalFiles %></p>
+    <p class="stat-meta">Загружено документов и медиаконтента.</p>
+  </article>
+  <article class="stat-card">
+    <h2>Использовано</h2>
+    <p class="stat-value"><%= stats.readableSize %></p>
+    <p class="stat-meta">Лимит на один файл — <%= uploadLimitMb %> МБ, за раз можно выбрать до <%= uploadMaxFiles %> файлов.</p>
+  </article>
+  <article class="stat-card">
+    <h2>Последние действия</h2>
+    <% if (recentActivity && recentActivity.length) { %>
+    <p class="stat-value"><%= recentActivity[0].level %></p>
+    <p class="stat-meta">Последнее изменение: <%= recentActivity[0].formattedTimestamp %></p>
+    <% } else { %>
+    <p class="stat-value">—</p>
+    <p class="stat-meta">Активность пока отсутствует.</p>
+    <% } %>
+  </article>
+</section>
+<section class="file-panel">
+  <header class="panel-header">
+    <h2>Содержимое папки</h2>
+    <span class="panel-meta">Текущий путь: <code><%= currentPath %></code></span>
+  </header>
+  <div class="file-table" role="table">
+    <div class="file-row file-row-header" role="row">
+      <span role="columnheader">Название</span>
+      <span role="columnheader">Тип</span>
+      <span role="columnheader">Размер</span>
+      <span role="columnheader">Создано</span>
+      <span role="columnheader" class="actions-col">Действия</span>
+    </div>
+    <% if ((!folders || folders.length === 0) && (!files || files.length === 0)) { %>
+    <div class="file-row file-row-empty" role="row">
+      <span role="cell" colspan="5">Здесь пока пусто. Создайте папку или загрузите файл.</span>
+    </div>
+    <% } %>
+    <% folders.forEach((folder) => { %>
+    <div class="file-row" role="row">
+      <span role="cell" data-label="Название">
+        <a class="file-link" href="/dashboard?path=<%= encodeURIComponent(folder.fullPath) %>">📁 <%= folder.name %></a>
+      </span>
+      <span role="cell" data-label="Тип">Папка</span>
+      <span role="cell" data-label="Размер">—</span>
+      <span role="cell" data-label="Создано"><%= new Date(folder.createdAt).toLocaleDateString('ru-RU') %></span>
+      <span role="cell" class="actions" data-label="Действия">
+        <a
+          class="btn-icon"
+          href="/files/<%= folder.id %>/archive"
+          title="Скачать папку архивом"
+          aria-label="Скачать папку архивом"
+        >📦</a>
+        <form action="/files/<%= folder.id %>/delete" method="post" class="inline-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="parentPath" value="<%= currentPath %>" />
+          <button type="submit" class="btn-icon" title="Удалить папку" data-confirm="Удалить папку вместе с содержимым?">🗑</button>
+        </form>
+      </span>
+    </div>
+    <% }); %>
+    <% files.forEach((file) => { %>
+    <div class="file-row" role="row">
+      <span role="cell" data-label="Название">
+        <a class="file-link" href="/files/<%= file.id %>">📄 <%= file.name %></a>
+      </span>
+      <span role="cell" data-label="Тип">Файл</span>
+      <span role="cell" data-label="Размер"><%= file.readableSize %></span>
+      <span role="cell" data-label="Создано"><%= new Date(file.createdAt).toLocaleDateString('ru-RU') %></span>
+      <span role="cell" class="actions" data-label="Действия">
+        <a
+          class="btn-icon"
+          href="/files/<%= file.id %>/download"
+          title="Скачать"
+          aria-label="Скачать файл"
+        >⬇</a>
+        <form action="/files/<%= file.id %>/delete" method="post" class="inline-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="parentPath" value="<%= currentPath %>" />
+          <button type="submit" class="btn-icon" title="Удалить файл" data-confirm="Удалить файл?">🗑</button>
+        </form>
+      </span>
+    </div>
+    <% }); %>
+  </div>
+</section>
+<section class="activity-panel">
+  <header class="panel-header">
+    <h2>Недавняя активность</h2>
+    <a class="panel-link" href="/dashboard/activity">Перейти к журналу</a>
+  </header>
+  <% if (recentActivity && recentActivity.length) { %>
+  <ul class="activity-list">
+    <% recentActivity.forEach((event) => { %>
+    <li>
+      <span class="activity-time"><%= event.formattedTimestamp %></span>
+      <span class="activity-message"><%= event.message %></span>
+    </li>
+    <% }); %>
+  </ul>
+  <% } else { %>
+  <p class="empty-state">Действий пока не зафиксировано.</p>
+  <% } %>
+</section>
+<div class="dialog" id="dialog-create-folder" hidden>
+  <div class="dialog-content">
+    <h2>Новая папка</h2>
+    <form action="/dashboard/folders" method="post" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="parentPath" value="<%= currentPath %>" />
+      <div class="form-field">
+        <label for="folderName">Название папки</label>
+        <input type="text" id="folderName" name="name" required minlength="2" maxlength="60" />
+      </div>
+      <div class="dialog-actions">
+        <button type="submit" class="btn btn-primary">Создать</button>
+        <button type="button" class="btn btn-outline" data-dialog-close>Отмена</button>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include('../partials/layout-end') %>

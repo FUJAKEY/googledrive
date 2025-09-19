@@ -1,0 +1,45 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1><%= item.name %></h1>
+    <p class="page-subtitle">Детали файла и быстрые действия.</p>
+  </div>
+  <% const parentLink = item.parentPath === '/' ? '/dashboard' : `/dashboard?path=${encodeURIComponent(item.parentPath)}`; %>
+  <a class="btn btn-outline" href="<%= parentLink %>">Назад</a>
+</section>
+<section class="file-detail">
+  <article>
+    <h2>Метаданные</h2>
+    <dl>
+      <div>
+        <dt>Тип</dt>
+        <dd><%= item.mimeType %></dd>
+      </div>
+      <div>
+        <dt>Размер</dt>
+        <dd><%= item.readableSize %></dd>
+      </div>
+      <div>
+        <dt>Расположение</dt>
+        <dd><code><%= item.fullPath %></code></dd>
+      </div>
+      <div>
+        <dt>Дата загрузки</dt>
+        <dd><%= new Date(item.createdAt).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) %></dd>
+      </div>
+    </dl>
+    <div class="detail-actions">
+      <a class="btn btn-primary" href="/files/<%= item.id %>/download">Скачать</a>
+      <form action="/files/<%= item.id %>/delete" method="post" class="inline-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="parentPath" value="<%= item.parentPath %>" />
+        <button type="submit" class="btn btn-outline" data-confirm="Удалить файл?">Удалить</button>
+      </form>
+    </div>
+  </article>
+  <aside>
+    <h2>Рекомендации</h2>
+    <p>Используйте возможность делиться файлами через защищённые ссылки (доступно в дорожной карте). Следите за журналом активности, чтобы контролировать скачивания и изменения.</p>
+  </aside>
+</section>
+<%- include('../partials/layout-end') %>

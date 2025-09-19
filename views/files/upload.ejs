@@ -1,0 +1,57 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1>Загрузка файлов</h1>
+    <p class="page-subtitle">Выберите один или несколько файлов и загрузите их в защищённое облачное хранилище.</p>
+  </div>
+  <% const backLink = parentPath && parentPath !== '/' ? `/dashboard?path=${encodeURIComponent(parentPath)}` : '/dashboard'; %>
+  <a class="btn btn-outline" href="<%= backLink %>">Вернуться</a>
+</section>
+<section class="upload">
+  <form
+    action="/files/upload?_csrf=<%= encodeURIComponent(csrfToken) %>"
+    method="post"
+    enctype="multipart/form-data"
+    class="upload-form"
+    id="upload-form"
+  >
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <input type="hidden" name="parentPath" value="<%= parentPath %>" />
+    <div
+      class="dropzone"
+      data-dropzone
+      data-max-files="<%= uploadMaxFiles %>"
+      role="button"
+      tabindex="0"
+      aria-label="Выбор файлов для загрузки"
+    >
+      <div class="dropzone-content">
+        <p class="dropzone-title" data-dropzone-message>Перетащите файлы сюда или нажмите для выбора</p>
+        <p class="dropzone-meta">Можно выбрать до <strong><%= uploadMaxFiles %></strong> файлов за один раз. Максимальный размер каждого — <strong><%= uploadLimitMb %> МБ</strong>.</p>
+        <ul class="dropzone-list" data-dropzone-list hidden></ul>
+        <p class="dropzone-meta dropzone-meta--summary" data-dropzone-summary hidden>Общий объём: 0 Б</p>
+      </div>
+      <input type="file" name="files" id="file" required multiple />
+    </div>
+    <button type="submit" class="btn btn-primary">Начать загрузку</button>
+    <div class="upload-progress" data-upload-progress hidden>
+      <div class="upload-progress__bar">
+        <div class="upload-progress__bar-fill" data-upload-bar></div>
+      </div>
+      <div class="upload-progress__meta">
+        <span class="upload-progress__percent" data-upload-percent>0%</span>
+        <span class="upload-progress__status" data-upload-status>Ожидание запуска загрузки…</span>
+      </div>
+    </div>
+  </form>
+  <aside class="upload-aside">
+    <h2>Советы по безопасности</h2>
+    <ul>
+      <li>Перед загрузкой убедитесь в безопасности файла.</li>
+      <li>Используйте понятные названия, чтобы легко находить документы.</li>
+      <li>Не загружайте исполняемые файлы — они блокируются системой.</li>
+      <li>В настройках включите уведомления о входе для дополнительной защиты.</li>
+    </ul>
+  </aside>
+</section>
+<%- include('../partials/layout-end') %>
