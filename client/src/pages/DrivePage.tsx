@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { View, Grid, Plus, Upload, FolderUp, ArrowUpDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Topbar } from '../components/Topbar';
@@ -59,7 +59,7 @@ export function DrivePage() {
           order: sortOrder
         }).toString()}`
       ),
-    keepPreviousData: true
+    placeholderData: keepPreviousData
   });
 
   const refreshDrive = useCallback(() => {
@@ -285,7 +285,7 @@ export function DrivePage() {
 
   const selectedIsInTrash = useMemo(() => selectedItems.some((item) => item.isTrashed), [selectedItems]);
 
-  const currentItems = data?.items ?? [];
+  const currentItems: DriveItem[] = data?.items ?? [];
 
   const breadcrumbs = data?.breadcrumbs ?? [];
 

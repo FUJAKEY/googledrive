@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Recycle, Grid, View } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Topbar } from '../components/Topbar';
@@ -25,8 +25,10 @@ export function TrashPage() {
       authorizedFetch(
         `/api/drive/list?trashed=true${search ? `&search=${encodeURIComponent(search)}` : ''}`
       ),
-    keepPreviousData: true
+    placeholderData: keepPreviousData
   });
+
+  const items: DriveItem[] = data?.items ?? [];
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['trash'] });
@@ -67,10 +69,10 @@ export function TrashPage() {
   };
 
   useEffect(() => {
-    if (!data?.items.length) {
+    if (!items.length) {
       resetSelection();
     }
-  }, [data]);
+  }, [items.length]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -83,7 +85,7 @@ export function TrashPage() {
       );
     }
 
-    if (!data?.items.length) {
+    if (!items.length) {
       return (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400 dark:border-slate-700 dark:bg-slate-900">
           Корзина пуста
@@ -94,7 +96,7 @@ export function TrashPage() {
     if (viewMode === 'grid') {
       return (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {data.items.map((item) => (
+          {items.map((item) => (
             <FileCard
               key={item.id}
               item={item}
@@ -109,7 +111,7 @@ export function TrashPage() {
 
     return (
       <div className="space-y-3">
-        {data.items.map((item) => (
+        {items.map((item) => (
           <FileRow
             key={item.id}
             item={item}
