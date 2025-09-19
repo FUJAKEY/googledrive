@@ -6,18 +6,23 @@
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
-    await injectPartials();
-    await refreshSession();
-    setupNavigation();
-    attachGlobalHandlers();
-    await runPageController();
+    try {
+      await injectPartials();
+      document.body.classList.add('app-mounted');
+      await refreshSession();
+      setupNavigation();
+      attachGlobalHandlers();
+      await runPageController();
+    } catch (error) {
+      console.error('Ошибка инициализации интерфейса', error);
+      showToast(error.message || 'Не удалось инициализировать интерфейс', 'error');
+    } finally {
+      document.body.classList.add('app-loaded');
+    }
   });
 
   async function injectPartials() {
-    await Promise.all([
-      injectPartial('header'),
-      injectPartial('footer')
-    ]);
+    await Promise.all([injectPartial('header'), injectPartial('footer')]);
     const year = document.querySelector('[data-year]');
     if (year) {
       year.textContent = new Date().getFullYear();
@@ -30,18 +35,30 @@
       return;
     }
     try {
-      const response = await fetch(`/partials/${name}.html`);
+      const response = await fetch(`/partials/${name}.html`, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      if (!response.ok) {
+        throw new Error(`Не удалось загрузить компонент ${name}`);
+      }
       const html = await response.text();
       placeholder.insertAdjacentHTML('afterend', html);
       placeholder.remove();
     } catch (error) {
-      console.error(`Не удалось загрузить компонент ${name}`, error);
+      console.error(error);
     }
   }
 
   async function refreshSession() {
     try {
-      const response = await fetch('/api/session');
+      const response = await fetch('/api/session', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error('Не удалось получить данные сессии');
+      }
       state.session = await response.json();
     } catch (error) {
       state.session = { authenticated: false };
@@ -51,15 +68,14 @@
   function setupNavigation() {
     const isAuth = !!state.session?.authenticated;
     const user = state.session?.user || null;
-    document.querySelectorAll('.nav-authenticated').forEach((el) => {
-      el.style.display = isAuth ? '' : 'none';
-    });
-    document.querySelectorAll('.nav-guest').forEach((el) => {
-      el.style.display = isAuth ? 'none' : '';
-    });
+
+    toggleVisibility('.nav-authenticated', isAuth);
+    toggleVisibility('.nav-guest', !isAuth);
+
     document.querySelectorAll('.nav-admin').forEach((el) => {
       el.style.display = user?.role === 'admin' ? '' : 'none';
     });
+
     const nameEl = document.querySelector('[data-user-name]');
     const roleEl = document.querySelector('[data-user-role]');
     if (nameEl) {
@@ -68,24 +84,89 @@
     if (roleEl) {
       roleEl.textContent = user ? user.role : '';
     }
+
+    document.body.classList.toggle('user-authenticated', isAuth);
+    document.body.classList.toggle('user-admin', user?.role === 'admin');
+
+    highlightActiveNav();
+  }
+
+  function toggleVisibility(selector, show) {
+    document.querySelectorAll(selector).forEach((el) => {
+      el.style.display = show ? '' : 'none';
+    });
+  }
+
+  function highlightActiveNav() {
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.main-nav a').forEach((link) => {
+      const href = link.getAttribute('href') || '';
+      if (!href.startsWith('/')) {
+        link.classList.remove('active');
+        return;
+      }
+      const normalized = href.length > 1 && href.endsWith('/') ? href.slice(0, -1) : href;
+      const isMatch = normalized === '/'
+        ? currentPath === '/'
+        : currentPath === normalized || currentPath.startsWith(`${normalized}/`);
+      link.classList.toggle('active', isMatch);
+    });
   }
 
   function attachGlobalHandlers() {
     const navToggle = document.getElementById('navToggle');
     const mainNav = document.getElementById('mainNav');
-    if (navToggle && mainNav) {
-      navToggle.addEventListener('click', () => {
-        mainNav.classList.toggle('open');
+    const navBackdrop = document.querySelector('[data-nav-backdrop]');
+
+    const closeNav = () => {
+      document.body.classList.remove('nav-open');
+      navToggle?.setAttribute('aria-expanded', 'false');
+    };
+
+    const openNav = () => {
+      document.body.classList.add('nav-open');
+      navToggle?.setAttribute('aria-expanded', 'true');
+    };
+
+    const toggleNav = () => {
+      if (document.body.classList.contains('nav-open')) {
+        closeNav();
+      } else {
+        openNav();
+      }
+    };
+
+    navToggle?.addEventListener('click', toggleNav);
+    navBackdrop?.addEventListener('click', closeNav);
+
+    mainNav?.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth < 960) {
+          closeNav();
+        }
       });
-    }
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 960) {
+        closeNav();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeNav();
+      }
+    });
 
     document.querySelectorAll('[data-action="logout"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         try {
           await apiRequest('/api/auth/logout', { method: 'POST' });
         } catch (error) {
-          // ignore
+          // ошибка выхода не должна блокировать редирект
         } finally {
+          closeNav();
           window.location.href = '/';
         }
       });
@@ -96,14 +177,26 @@
     if (state.csrfToken) {
       return state.csrfToken;
     }
-    const response = await fetch('/api/csrf-token');
+    const response = await fetch('/api/csrf-token', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error('Не удалось получить CSRF-токен');
+    }
     const data = await response.json();
     state.csrfToken = data.csrfToken;
     return state.csrfToken;
   }
 
   async function apiRequest(url, { method = 'GET', body = null, headers = {}, skipRedirect = false } = {}) {
-    const options = { method, headers: { ...headers } };
+    const options = {
+      method,
+      credentials: 'include',
+      headers: { Accept: 'application/json, text/plain, */*', ...headers }
+    };
+
     let isFormData = false;
     if (body instanceof FormData) {
       options.body = body;
@@ -127,20 +220,27 @@
     const response = await fetch(url, options);
     const contentType = response.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
-    const payload = isJson ? await response.json() : await response.text();
+
+    let payload = null;
+    if (response.status !== 204) {
+      payload = isJson ? await response.json() : await response.text();
+    }
 
     if (response.status === 401 && !skipRedirect) {
       window.location.href = '/login';
-      throw new Error('Требуется авторизация');
+      throw new Error(typeof payload === 'string' ? payload : payload?.message || 'Требуется авторизация');
     }
+
     if (response.status === 403 && !skipRedirect) {
-      showToast(payload?.message || 'Доступ запрещён', 'error');
-      throw new Error(payload?.message || 'Доступ запрещён');
+      showToast(typeof payload === 'string' ? payload : payload?.message || 'Доступ запрещён', 'error');
+      throw new Error(typeof payload === 'string' ? payload : payload?.message || 'Доступ запрещён');
     }
+
     if (!response.ok) {
-      const message = payload?.message || payload || 'Ошибка запроса';
+      const message = typeof payload === 'string' ? payload : payload?.message || 'Ошибка запроса';
       throw new Error(message);
     }
+
     return payload;
   }
 
@@ -151,11 +251,12 @@
     }
     toast.textContent = message;
     toast.className = `toast toast-${type}`;
+    toast.classList.remove('hidden');
     toast.classList.add('visible');
     clearTimeout(state.toastTimer);
     state.toastTimer = setTimeout(() => {
       toast.classList.remove('visible');
-    }, 4000);
+    }, 4200);
   }
 
   async function runPageController() {
@@ -188,9 +289,17 @@
     }
   }
 
+  function updateOwnerVisibility(isOwner) {
+    document.querySelectorAll('.owner-only').forEach((el) => {
+      const fallback = el.dataset.ownerDisplay || (el.tagName === 'DIV' ? 'block' : 'inline-flex');
+      el.style.display = isOwner ? fallback : 'none';
+    });
+  }
+
   async function initLogin() {
     const form = document.getElementById('loginForm');
     if (!form) return;
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(form);
@@ -212,6 +321,7 @@
   async function initRegister() {
     const form = document.getElementById('registerForm');
     if (!form) return;
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(form);
@@ -240,6 +350,7 @@
 
     const form = document.getElementById('twoFactorForm');
     if (!form) return;
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = Object.fromEntries(new FormData(form).entries());
@@ -301,6 +412,7 @@
 
     const form = document.getElementById('uploadForm');
     if (!form) return;
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(form);
@@ -318,6 +430,7 @@
     const pathSegments = window.location.pathname.split('/');
     const fileId = pathSegments[pathSegments.length - 1];
     if (!fileId) return;
+
     try {
       const data = await apiRequest(`/api/files/${fileId}`);
       updateFileCard(data);
@@ -330,27 +443,23 @@
   function updateFileCard(data) {
     const file = data.file;
     if (!file) return;
-    const nameEl = document.querySelector('[data-file-name]');
-    const metaEl = document.querySelector('[data-file-meta]');
+
+    document.querySelector('[data-file-name]')?.textContent = file.original_name;
+    document.querySelector('[data-file-meta]')?.textContent = `ID: ${file.id}`;
     const classEl = document.querySelector('[data-file-classification]');
-    const sizeEl = document.querySelector('[data-file-size]');
-    const createdEl = document.querySelector('[data-file-created]');
-    const descEl = document.querySelector('[data-file-description]');
-    if (nameEl) nameEl.textContent = file.original_name;
-    if (metaEl) metaEl.textContent = `ID: ${file.id}`;
-    if (classEl) classEl.innerHTML = `<span class="badge" data-level="${file.classification}">${file.classification}</span>`;
-    if (sizeEl) sizeEl.textContent = file.formattedSize;
-    if (createdEl) createdEl.textContent = file.formattedDate;
-    if (descEl) descEl.textContent = file.description || 'Описание отсутствует';
+    if (classEl) {
+      classEl.innerHTML = `<span class="badge" data-level="${file.classification}">${file.classification}</span>`;
+    }
+    document.querySelector('[data-file-size]')?.textContent = file.formattedSize;
+    document.querySelector('[data-file-created]')?.textContent = file.formattedDate;
+    document.querySelector('[data-file-description]')?.textContent = file.description || 'Описание отсутствует';
 
     const downloadLink = document.querySelector('[data-action="download"]');
     if (downloadLink) {
       downloadLink.href = `/api/files/${file.id}/download`;
     }
 
-    document.querySelectorAll('.owner-only').forEach((el) => {
-      el.style.display = data.isOwner ? '' : 'none';
-    });
+    updateOwnerVisibility(data.isOwner);
 
     const tableBody = document.querySelector('#sharesTable tbody');
     if (tableBody) {
@@ -523,6 +632,7 @@
   async function initAdminUsers() {
     const tableBody = document.querySelector('#adminUsersTable tbody');
     if (!tableBody) return;
+
     try {
       const data = await apiRequest('/api/admin/users');
       tableBody.innerHTML = '';
@@ -573,6 +683,7 @@
   async function initAdminFiles() {
     const tableBody = document.querySelector('#adminFilesTable tbody');
     if (!tableBody) return;
+
     try {
       const data = await apiRequest('/api/admin/files');
       tableBody.innerHTML = '';
@@ -595,6 +706,7 @@
   async function initAdminAudit() {
     const tableBody = document.querySelector('#auditTable tbody');
     if (!tableBody) return;
+
     try {
       const data = await apiRequest('/api/admin/audit');
       tableBody.innerHTML = '';
