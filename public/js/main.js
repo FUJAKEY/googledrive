@@ -43,6 +43,21 @@ function pushFlash(type, message) {
   flash.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function formatBytes(bytes = 0) {
+  if (!bytes) {
+    return '0 Б';
+  }
+
+  const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+  const index = Math.floor(Math.log(bytes) / Math.log(1024));
+  const value = bytes / Math.pow(1024, index);
+  return `${value.toFixed(1)} ${units[index]}`;
+}
+
+let dropzoneInputElement = null;
+let normalizeSelectedFiles = (fileList) => fileList;
+let renderSelectedFiles = () => {};
+
 const dialogs = document.querySelectorAll('.dialog');
 
 document.querySelectorAll('[data-dialog-open]').forEach((trigger) => {
@@ -88,6 +103,92 @@ confirmButtons.forEach((button) => {
 
 const dropzone = document.querySelector('[data-dropzone]');
 if (dropzone) {
+  dropzoneInputElement = dropzone.querySelector('input[type="file"]') || null;
+  const dropzoneList = dropzone.querySelector('[data-dropzone-list]');
+  const dropzoneMessage = dropzone.querySelector('[data-dropzone-message]');
+  const dropzoneSummary = dropzone.querySelector('[data-dropzone-summary]');
+  const defaultMessage = dropzoneMessage ? dropzoneMessage.textContent : '';
+  const maxFilesAttr = parseInt(dropzone.getAttribute('data-max-files'), 10);
+  const maxFiles = Number.isFinite(maxFilesAttr) && maxFilesAttr > 0 ? maxFilesAttr : Infinity;
+
+  normalizeSelectedFiles = (fileList) => {
+    if (!dropzoneInputElement) {
+      return fileList;
+    }
+
+    const filesArray = Array.from(fileList || []);
+    if (!filesArray.length) {
+      dropzoneInputElement.value = '';
+      return dropzoneInputElement.files;
+    }
+
+    let selectedFiles = filesArray;
+    if (maxFiles !== Infinity && filesArray.length > maxFiles) {
+      pushFlash('error', `Можно выбрать до ${maxFiles} файлов за одну загрузку. Лишние файлы будут отброшены.`);
+      selectedFiles = filesArray.slice(0, maxFiles);
+    }
+
+    if (typeof DataTransfer === 'undefined') {
+      return fileList;
+    }
+
+    const transfer = new DataTransfer();
+    selectedFiles.forEach((file) => transfer.items.add(file));
+    dropzoneInputElement.files = transfer.files;
+    return dropzoneInputElement.files;
+  };
+
+  renderSelectedFiles = (fileList) => {
+    if (!dropzoneList || !dropzoneMessage) {
+      return;
+    }
+
+    const files = Array.from(fileList || []);
+    dropzoneList.innerHTML = '';
+
+    if (!files.length) {
+      dropzone.classList.remove('has-files');
+      dropzoneList.hidden = true;
+      if (dropzoneSummary) {
+        dropzoneSummary.hidden = true;
+      }
+      if (defaultMessage) {
+        dropzoneMessage.textContent = defaultMessage;
+      }
+      return;
+    }
+
+    dropzone.classList.add('has-files');
+    dropzoneList.hidden = false;
+    let totalSize = 0;
+
+    files.forEach((file) => {
+      totalSize += file.size || 0;
+      const item = document.createElement('li');
+      item.className = 'dropzone-item';
+
+      const name = document.createElement('span');
+      name.className = 'dropzone-item__name';
+      name.textContent = file.name;
+
+      const size = document.createElement('span');
+      size.className = 'dropzone-item__size';
+      size.textContent = formatBytes(file.size || 0);
+
+      item.appendChild(name);
+      item.appendChild(size);
+      dropzoneList.appendChild(item);
+    });
+
+    dropzoneMessage.textContent =
+      files.length === 1 ? 'Выбран 1 файл' : `Выбрано файлов: ${files.length}`;
+
+    if (dropzoneSummary) {
+      dropzoneSummary.textContent = `Общий объём: ${formatBytes(totalSize)}`;
+      dropzoneSummary.hidden = false;
+    }
+  };
+
   ['dragenter', 'dragover'].forEach((eventName) => {
     dropzone.addEventListener(eventName, (event) => {
       event.preventDefault();
@@ -107,22 +208,46 @@ if (dropzone) {
   dropzone.addEventListener('drop', (event) => {
     const files = event.dataTransfer?.files;
     if (files && files.length) {
-      const input = dropzone.querySelector('input[type="file"]');
-      if (input) {
-        input.files = files;
+      const normalized = normalizeSelectedFiles(files);
+      renderSelectedFiles(normalized);
+    }
+  });
+
+  dropzone.addEventListener('click', () => {
+    if (dropzoneInputElement) {
+      dropzoneInputElement.click();
+    }
+  });
+
+  dropzone.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (dropzoneInputElement) {
+        dropzoneInputElement.click();
       }
     }
   });
+
+  if (dropzoneInputElement) {
+    renderSelectedFiles(dropzoneInputElement.files);
+  }
 }
 
 const uploadForm = document.getElementById('upload-form');
 if (uploadForm && window.FormData && window.XMLHttpRequest) {
-  const fileInput = uploadForm.querySelector('input[type="file"]');
+  const fileInput = dropzoneInputElement || uploadForm.querySelector('input[type="file"]');
   const submitButton = uploadForm.querySelector('button[type="submit"]');
   const progressPanel = uploadForm.querySelector('[data-upload-progress]');
   const progressBar = uploadForm.querySelector('[data-upload-bar]');
   const progressPercent = uploadForm.querySelector('[data-upload-percent]');
   const progressStatus = uploadForm.querySelector('[data-upload-status]');
+
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      const normalized = normalizeSelectedFiles(fileInput.files);
+      renderSelectedFiles(normalized);
+    });
+  }
 
   const setProgress = (value) => {
     if (progressBar) {
@@ -161,8 +286,18 @@ if (uploadForm && window.FormData && window.XMLHttpRequest) {
   uploadForm.addEventListener('submit', (event) => {
     event.preventDefault();
 
-    if (!fileInput || !fileInput.files || !fileInput.files.length) {
-      pushFlash('error', 'Выберите файл для загрузки.');
+    if (!fileInput) {
+      pushFlash('error', 'Выберите файлы для загрузки.');
+      return;
+    }
+
+    const normalizedFiles = normalizeSelectedFiles(fileInput.files);
+    const filesToUpload = normalizedFiles || fileInput.files;
+
+    renderSelectedFiles(filesToUpload);
+
+    if (!filesToUpload || !filesToUpload.length) {
+      pushFlash('error', 'Выберите файлы для загрузки.');
       return;
     }
 
@@ -194,9 +329,9 @@ if (uploadForm && window.FormData && window.XMLHttpRequest) {
       const percent = (progressEvent.loaded / progressEvent.total) * 100;
       setProgress(percent);
       if (percent < 100) {
-        updateStatus('Загрузка файла…');
+        updateStatus('Загрузка файлов…');
       } else {
-        updateStatus('Файл загружен, завершаем обработку…');
+        updateStatus('Файлы загружены, завершаем обработку…');
       }
     });
 
@@ -223,7 +358,7 @@ if (uploadForm && window.FormData && window.XMLHttpRequest) {
       }
 
       const message =
-        (response && response.message) || 'Не удалось загрузить файл. Попробуйте ещё раз.';
+        (response && response.message) || 'Не удалось загрузить файлы. Попробуйте ещё раз.';
       handleFailure(message);
     });
 

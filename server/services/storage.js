@@ -279,6 +279,28 @@ async function registerFile(ownerId, { originalName, storedName, size, mimeType,
   return fileItem;
 }
 
+async function getFolderDescendants(ownerId, folderPath) {
+  const normalizedFolder = normalizePath(folderPath);
+  const items = await getItems();
+  const prefix = `${normalizedFolder}/`;
+
+  const folders = items.filter(
+    (item) =>
+      item.ownerId === ownerId &&
+      item.type === 'folder' &&
+      item.fullPath.startsWith(prefix)
+  );
+
+  const files = items.filter(
+    (item) =>
+      item.ownerId === ownerId &&
+      item.type === 'file' &&
+      item.fullPath.startsWith(prefix)
+  );
+
+  return { folders, files };
+}
+
 async function getItemById(id) {
   const items = await getItems();
   return items.find((item) => item.id === id);
@@ -371,5 +393,6 @@ module.exports = {
   getUserStorageStats,
   searchItems,
   normalizePath,
-  sanitizeFolderName
+  sanitizeFolderName,
+  getFolderDescendants
 };

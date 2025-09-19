@@ -1,8 +1,8 @@
 <%- include('../partials/layout-start', { title }) %>
 <section class="page-header">
   <div>
-    <h1>Загрузка файла</h1>
-    <p class="page-subtitle">Выберите файл и загрузите его в безопасное облачное хранилище.</p>
+    <h1>Загрузка файлов</h1>
+    <p class="page-subtitle">Выберите один или несколько файлов и загрузите их в защищённое облачное хранилище.</p>
   </div>
   <% const backLink = parentPath && parentPath !== '/' ? `/dashboard?path=${encodeURIComponent(parentPath)}` : '/dashboard'; %>
   <a class="btn btn-outline" href="<%= backLink %>">Вернуться</a>
@@ -17,10 +17,21 @@
   >
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <input type="hidden" name="parentPath" value="<%= parentPath %>" />
-    <div class="dropzone" data-dropzone>
-      <p>Перетащите файл сюда или нажмите для выбора</p>
-      <p class="dropzone-meta">Максимальный размер файла: <strong><%= uploadLimitMb %> МБ</strong></p>
-      <input type="file" name="file" id="file" required />
+    <div
+      class="dropzone"
+      data-dropzone
+      data-max-files="<%= uploadMaxFiles %>"
+      role="button"
+      tabindex="0"
+      aria-label="Выбор файлов для загрузки"
+    >
+      <div class="dropzone-content">
+        <p class="dropzone-title" data-dropzone-message>Перетащите файлы сюда или нажмите для выбора</p>
+        <p class="dropzone-meta">Можно выбрать до <strong><%= uploadMaxFiles %></strong> файлов за один раз. Максимальный размер каждого — <strong><%= uploadLimitMb %> МБ</strong>.</p>
+        <ul class="dropzone-list" data-dropzone-list hidden></ul>
+        <p class="dropzone-meta dropzone-meta--summary" data-dropzone-summary hidden>Общий объём: 0 Б</p>
+      </div>
+      <input type="file" name="files" id="file" required multiple />
     </div>
     <button type="submit" class="btn btn-primary">Начать загрузку</button>
     <div class="upload-progress" data-upload-progress hidden>

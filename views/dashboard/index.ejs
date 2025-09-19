@@ -19,7 +19,7 @@
   <article class="stat-card">
     <h2>Использовано</h2>
     <p class="stat-value"><%= stats.readableSize %></p>
-    <p class="stat-meta">Лимит на загрузку одного файла — <%= uploadLimitMb %> МБ.</p>
+    <p class="stat-meta">Лимит на один файл — <%= uploadLimitMb %> МБ, за раз можно выбрать до <%= uploadMaxFiles %> файлов.</p>
   </article>
   <article class="stat-card">
     <h2>Последние действия</h2>
@@ -59,6 +59,12 @@
       <span role="cell" data-label="Размер">—</span>
       <span role="cell" data-label="Создано"><%= new Date(folder.createdAt).toLocaleDateString('ru-RU') %></span>
       <span role="cell" class="actions" data-label="Действия">
+        <a
+          class="btn-icon"
+          href="/files/<%= folder.id %>/archive"
+          title="Скачать папку архивом"
+          aria-label="Скачать папку архивом"
+        >📦</a>
         <form action="/files/<%= folder.id %>/delete" method="post" class="inline-form">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
           <input type="hidden" name="parentPath" value="<%= currentPath %>" />
@@ -76,7 +82,12 @@
       <span role="cell" data-label="Размер"><%= file.readableSize %></span>
       <span role="cell" data-label="Создано"><%= new Date(file.createdAt).toLocaleDateString('ru-RU') %></span>
       <span role="cell" class="actions" data-label="Действия">
-        <a class="btn-icon" href="/files/<%= file.id %>/download" title="Скачать">⬇</a>
+        <a
+          class="btn-icon"
+          href="/files/<%= file.id %>/download"
+          title="Скачать"
+          aria-label="Скачать файл"
+        >⬇</a>
         <form action="/files/<%= file.id %>/delete" method="post" class="inline-form">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
           <input type="hidden" name="parentPath" value="<%= currentPath %>" />

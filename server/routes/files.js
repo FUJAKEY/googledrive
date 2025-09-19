@@ -1,6 +1,8 @@
+const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const archiver = require('archiver');
 const { v4: uuidv4 } = require('uuid');
 const { body, param, validationResult } = require('express-validator');
 
@@ -26,7 +28,16 @@ function formatBytes(bytes = 0) {
   return `${value.toFixed(1)} ${sizes[i]}`;
 }
 
-const uploadLimitMb = parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB || '20', 10);
+function parsePositiveInt(value, fallback) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+const uploadLimitMb = parsePositiveInt(process.env.UPLOAD_MAX_FILE_SIZE_MB || '20', 20);
+const uploadMaxFiles = parsePositiveInt(process.env.UPLOAD_MAX_FILES || '10', 10);
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
@@ -39,7 +50,8 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: uploadLimitMb * 1024 * 1024
+    fileSize: uploadLimitMb * 1024 * 1024,
+    files: uploadMaxFiles
   },
   fileFilter: (_req, file, cb) => {
     const disallowedExtensions = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.com', '.scr'];
@@ -76,9 +88,10 @@ const validateParentPath = [
 router.get('/upload', async (req, res) => {
   const parentPath = req.query.path ? req.query.path : '/';
   res.render('files/upload', {
-    title: 'Загрузка файла',
+    title: 'Загрузка файлов',
     parentPath,
-    uploadLimitMb
+    uploadLimitMb,
+    uploadMaxFiles
   });
 });
 
@@ -99,12 +112,15 @@ router.post(
   },
   ensureUserDirectory,
   (req, res, next) => {
-    upload.single('file')(req, res, (error) => {
+    upload.array('files', uploadMaxFiles)(req, res, (error) => {
       if (error) {
         logger.logError(error);
-        let message = error.message || 'Не удалось загрузить файл.';
+        let message = error.message || 'Не удалось загрузить файлы.';
         if (error.code === 'LIMIT_FILE_SIZE') {
           message = `Файл превышает допустимый размер ${uploadLimitMb} МБ.`;
+        }
+        if (error.code === 'LIMIT_FILE_COUNT') {
+          message = `За одну загрузку можно выбрать не более ${uploadMaxFiles} файлов.`;
         }
         if (wantsJson(req)) {
           return res.status(400).json({ success: false, message });
@@ -116,8 +132,8 @@ router.post(
     });
   },
   async (req, res) => {
-    if (!req.file) {
-      const message = 'Выберите файл для загрузки.';
+    if (!req.files || !req.files.length) {
+      const message = 'Выберите файлы для загрузки.';
       if (wantsJson(req)) {
         return res.status(400).json({ success: false, message });
       }
@@ -127,29 +143,41 @@ router.post(
 
     try {
       const parentPath = req.body.parentPath ? storage.normalizePath(req.body.parentPath) : '/';
-      const meta = await storage.registerFile(req.session.user.id, {
-        originalName: req.file.originalname,
-        storedName: req.file.filename,
-        size: req.file.size,
-        mimeType: req.file.mimetype,
-        parentPath
-      });
+      const uploadedMetadata = [];
 
-      logger.logUserAction(req.session.user.id, 'upload-file', {
-        file: meta.fullPath,
-        size: req.file.size
-      });
+      for (const file of req.files) {
+        const meta = await storage.registerFile(req.session.user.id, {
+          originalName: file.originalname,
+          storedName: file.filename,
+          size: file.size,
+          mimeType: file.mimetype,
+          parentPath
+        });
 
-      const successMessage = 'Файл успешно загружен.';
+        uploadedMetadata.push(meta);
+
+        logger.logUserAction(req.session.user.id, 'upload-file', {
+          file: meta.fullPath,
+          size: file.size
+        });
+      }
+
+      const successMessage =
+        uploadedMetadata.length === 1 ? 'Файл успешно загружен.' : 'Файлы успешно загружены.';
       req.flash('success', successMessage);
       const redirectPath = parentPath === '/' ? '/dashboard' : `/dashboard?path=${encodeURIComponent(parentPath)}`;
       if (wantsJson(req)) {
-        return res.json({ success: true, redirect: redirectPath, message: successMessage });
+        return res.json({
+          success: true,
+          redirect: redirectPath,
+          message: successMessage,
+          uploaded: uploadedMetadata.map((meta) => ({ id: meta.id, name: meta.name }))
+        });
       }
       return res.redirect(redirectPath);
     } catch (error) {
       logger.logError(error);
-      const message = error.message || 'Не удалось сохранить файл.';
+      const message = error.message || 'Не удалось сохранить файлы.';
       if (wantsJson(req)) {
         return res.status(500).json({ success: false, message });
       }
@@ -225,6 +253,90 @@ router.get(
       req.flash('error', 'Не удалось скачать файл.');
       return res.redirect('/dashboard');
     }
+  }
+);
+
+router.get(
+  '/:id/archive',
+  [param('id').isUUID()],
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      req.flash('error', 'Запрошен недопустимый идентификатор.');
+      return res.redirect('/dashboard');
+    }
+
+    try {
+      const folder = await storage.getItemById(req.params.id);
+      if (!folder || folder.ownerId !== req.session.user.id || folder.type !== 'folder') {
+        req.flash('error', 'Папка не найдена.');
+        return res.redirect('/dashboard');
+      }
+
+      const { folders, files } = await storage.getFolderDescendants(folder.ownerId, folder.fullPath);
+
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      archive.on('error', (error) => {
+        logger.logError(error);
+        next(error);
+      });
+
+      archive.on('warning', (error) => {
+        if (error.code === 'ENOENT') {
+          logger.logError(error);
+          return;
+        }
+        next(error);
+      });
+
+      res.setHeader('Content-Type', 'application/zip');
+      res.attachment(`${folder.name}.zip`);
+      archive.pipe(res);
+
+      const safePrefix = folder.name;
+      archive.append('', { name: `${safePrefix}/`, type: 'directory' });
+
+      folders
+        .filter((child) => child.fullPath !== folder.fullPath)
+        .sort((a, b) => a.fullPath.localeCompare(b.fullPath, 'ru'))
+        .forEach((child) => {
+          const relative = child.fullPath.slice(folder.fullPath.length + 1);
+          if (relative) {
+            archive.append('', { name: `${safePrefix}/${relative}/`, type: 'directory' });
+          }
+        });
+
+      files
+        .sort((a, b) => a.fullPath.localeCompare(b.fullPath, 'ru'))
+        .forEach((file) => {
+          const relative = file.fullPath.slice(folder.fullPath.length + 1);
+          if (!relative) {
+            return;
+          }
+          const absolutePath = path.join(__dirname, '..', '..', 'uploads', file.ownerId, file.storedName);
+          if (!fs.existsSync(absolutePath)) {
+            logger.logError(new Error(`Файл ${absolutePath} отсутствует при архивировании.`));
+            return;
+          }
+          archive.file(absolutePath, { name: `${safePrefix}/${relative}` });
+        });
+
+      logger.logUserAction(req.session.user.id, 'download-folder', {
+        folder: folder.fullPath,
+        files: files.length
+      });
+
+      await archive.finalize();
+      return null;
+    } catch (error) {
+      logger.logError(error);
+      if (!res.headersSent) {
+        req.flash('error', 'Не удалось подготовить архив папки.');
+        return res.redirect('/dashboard');
+      }
+      res.end();
+    }
+    return null;
   }
 );
 

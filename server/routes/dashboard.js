@@ -9,6 +9,14 @@ const { safeRedirectBack } = require('../utils/navigation');
 
 const router = express.Router();
 
+function parsePositiveInt(value, fallback) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
 function wantsJson(req) {
   const accept = req.get('Accept') || '';
   return req.xhr || accept.includes('application/json');
@@ -80,7 +88,8 @@ router.get(
         formattedTimestamp: formatTimestamp(event.timestamp || event.time),
         level: translateLevel(event.level || 'action')
       }));
-      const uploadLimitMb = parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB || '20', 10);
+      const uploadLimitMb = parsePositiveInt(process.env.UPLOAD_MAX_FILE_SIZE_MB || '20', 20);
+      const uploadMaxFiles = parsePositiveInt(process.env.UPLOAD_MAX_FILES || '10', 10);
 
       folders.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
       const preparedFiles = files
@@ -98,7 +107,8 @@ router.get(
         currentPath,
         stats,
         recentActivity,
-        uploadLimitMb
+        uploadLimitMb,
+        uploadMaxFiles
       });
     } catch (error) {
       logger.logError(error);

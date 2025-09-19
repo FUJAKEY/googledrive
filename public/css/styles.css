@@ -582,6 +582,7 @@ code {
   height: 100%;
   opacity: 0;
   cursor: pointer;
+  pointer-events: none;
 }
 
 .dropzone:hover {
@@ -594,9 +595,69 @@ code {
   background: rgba(50, 115, 220, 0.18);
 }
 
+.dropzone:focus-visible {
+  outline: none;
+  border-color: rgba(50, 115, 220, 0.9);
+  box-shadow: 0 0 0 4px rgba(50, 115, 220, 0.15);
+}
+
+.dropzone.has-files {
+  text-align: left;
+}
+
+.dropzone-content {
+  display: grid;
+  gap: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.dropzone-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
 .dropzone-meta {
   color: var(--color-muted);
   margin-top: 0.5rem;
+}
+
+.dropzone-meta--summary {
+  font-weight: 600;
+}
+
+.dropzone-list {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.dropzone-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(50, 115, 220, 0.18);
+  box-shadow: var(--shadow-xs, var(--shadow-sm));
+}
+
+.dropzone-item__name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropzone-item__size {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  margin-left: auto;
 }
 
 .upload-progress {
@@ -951,5 +1012,10 @@ code {
 
   .dropzone {
     background: rgba(50, 115, 220, 0.12);
+  }
+
+  .dropzone-item {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(148, 163, 184, 0.3);
   }
 }
