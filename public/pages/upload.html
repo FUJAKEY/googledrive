@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Загрузка документа</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="upload">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Безопасный импорт</span>
+                <h1>Загрузка документа</h1>
+                <p>Выберите уровень классификации и добавьте описание для быстрого поиска.</p>
+              </div>
+              <div class="section-actions">
+                <a class="btn btn-secondary" href="/dashboard">Назад к файлам</a>
+              </div>
+            </div>
+            <div class="card">
+              <form id="uploadForm" class="form-grid" enctype="multipart/form-data">
+                <label class="full-width">
+                  Файл
+                  <input type="file" name="document" required />
+                </label>
+                <label>
+                  Классификация
+                  <select name="classification" id="classificationSelect" required></select>
+                </label>
+                <label class="full-width">
+                  Описание
+                  <textarea name="description" rows="3" placeholder="Кратко опишите содержимое"></textarea>
+                </label>
+                <button type="submit" class="btn">Загрузить</button>
+              </form>
+              <p class="muted">Поддерживаются PDF, изображения и офисные документы до 50 МБ.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

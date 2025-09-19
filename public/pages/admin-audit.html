@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Аудит действий</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="admin-audit">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Администрирование</span>
+                <h1>Журнал аудита</h1>
+                <p>Фиксирует каждое критичное действие для последующего анализа.</p>
+              </div>
+              <div class="section-actions">
+                <a class="btn btn-secondary" href="/admin/users">Пользователи</a>
+                <a class="btn btn-secondary" href="/admin/files">Файлы</a>
+              </div>
+            </div>
+            <div class="card">
+              <div class="table-responsive">
+                <table class="data-table" id="auditTable">
+                  <thead>
+                    <tr>
+                      <th>Время</th>
+                      <th>Пользователь</th>
+                      <th>Действие</th>
+                      <th>Детали</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

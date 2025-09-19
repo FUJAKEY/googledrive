@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Карточка документа</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="file">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Карточка документа</span>
+                <h1 data-file-name>Документ</h1>
+                <p data-file-meta></p>
+              </div>
+              <div class="section-actions">
+                <a class="btn btn-secondary" href="/dashboard">К списку файлов</a>
+                <a class="btn" data-action="download" href="#">Скачать</a>
+                <button class="btn btn-danger owner-only" data-owner-display="inline-flex" data-action="delete">Удалить</button>
+              </div>
+            </div>
+            <div class="card">
+              <dl class="meta-grid">
+                <div>
+                  <dt>Классификация</dt>
+                  <dd data-file-classification>-</dd>
+                </div>
+                <div>
+                  <dt>Размер</dt>
+                  <dd data-file-size>-</dd>
+                </div>
+                <div>
+                  <dt>Загружен</dt>
+                  <dd data-file-created>-</dd>
+                </div>
+              </dl>
+              <h3>Описание</h3>
+              <p data-file-description class="muted"></p>
+            </div>
+
+            <div class="card owner-only" data-owner-display="block">
+              <h3>Совместный доступ</h3>
+              <form id="shareForm" class="form-grid">
+                <label class="full-width">
+                  Email коллеги
+                  <input type="email" name="email" required />
+                </label>
+                <label>
+                  Права
+                  <select name="permission">
+                    <option value="viewer">Просмотр</option>
+                    <option value="editor">Редактирование</option>
+                  </select>
+                </label>
+                <button type="submit" class="btn">Предоставить доступ</button>
+              </form>
+              <div class="table-responsive">
+                <table class="data-table" id="sharesTable">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Права</th>
+                      <th>Добавлен</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

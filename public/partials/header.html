@@ -1,0 +1,31 @@
+<header class="app-header">
+  <div class="container header-bar">
+    <a class="logo" href="/">Aurora Drive</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Открыть основное меню" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <nav class="main-nav" id="mainNav" aria-label="Основное меню">
+      <ul>
+        <li class="nav-public"><a href="/">Платформа</a></li>
+        <li class="nav-public"><a href="/security">Безопасность</a></li>
+        <li class="nav-public"><a href="/support">Поддержка</a></li>
+        <li class="nav-authenticated"><a href="/dashboard">Рабочая зона</a></li>
+        <li class="nav-authenticated"><a href="/files/upload">Загрузить</a></li>
+        <li class="nav-authenticated"><a href="/profile/security">Центр безопасности</a></li>
+        <li class="nav-admin"><a href="/admin/users">Администрирование</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <div class="user-chip nav-authenticated">
+        <span class="user-name" data-user-name></span>
+        <span class="user-role" data-user-role></span>
+      </div>
+      <a class="btn btn-ghost nav-guest" href="/login">Войти</a>
+      <a class="btn nav-guest" href="/register">Регистрация</a>
+      <button class="btn btn-danger nav-authenticated" data-action="logout">Выйти</button>
+    </div>
+  </div>
+  <div class="nav-backdrop" data-nav-backdrop></div>
+</header>

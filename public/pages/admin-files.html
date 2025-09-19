@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Глобальный обзор файлов</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="admin-files">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Администрирование</span>
+                <h1>Файлы организации</h1>
+                <p>Контролируйте хранилище, находите аномалии и соблюдайте регламенты.</p>
+              </div>
+              <div class="section-actions">
+                <a class="btn btn-secondary" href="/admin/users">Пользователи</a>
+                <a class="btn btn-secondary" href="/admin/audit">Аудит</a>
+              </div>
+            </div>
+            <div class="card">
+              <div class="table-responsive">
+                <table class="data-table" id="adminFilesTable">
+                  <thead>
+                    <tr>
+                      <th>Название</th>
+                      <th>Владелец</th>
+                      <th>Классификация</th>
+                      <th>Размер</th>
+                      <th>Загружен</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

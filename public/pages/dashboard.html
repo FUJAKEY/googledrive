@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Рабочее пространство Aurora Drive</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="dashboard">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Рабочее пространство</span>
+                <h1>Рабочая зона</h1>
+                <p>Доступные вам документы с учётом роли, классификации и MFA.</p>
+              </div>
+              <div class="section-actions">
+                <a class="btn" href="/files/upload">Загрузить документ</a>
+              </div>
+            </div>
+            <div class="card">
+              <div class="table-responsive">
+                <table class="data-table" id="dashboardTable">
+                  <thead>
+                    <tr>
+                      <th>Название</th>
+                      <th>Классификация</th>
+                      <th>Размер</th>
+                      <th>Обновлено</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Профиль пользователя</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="profile">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Учётная запись</span>
+                <h1>Профиль</h1>
+                <p>Основные данные учётной записи и назначенная роль.</p>
+              </div>
+              <div class="section-actions">
+                <a class="btn" href="/profile/security">Центр безопасности</a>
+              </div>
+            </div>
+            <div class="card">
+              <dl class="meta-grid">
+                <div>
+                  <dt>Имя</dt>
+                  <dd data-profile-name>-</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd data-profile-email>-</dd>
+                </div>
+                <div>
+                  <dt>Роль</dt>
+                  <dd data-profile-role>-</dd>
+                </div>
+                <div>
+                  <dt>Двухфакторная защита</dt>
+                  <dd data-profile-mfa>-</dd>
+                </div>
+              </dl>
+              <p class="muted">Для изменения данных обратитесь к администратору безопасности.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

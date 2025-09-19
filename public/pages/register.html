@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Регистрация в Aurora Drive</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="register">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="auth-section">
+          <div class="container auth-card">
+            <span class="eyebrow">Создание организации</span>
+            <h1>Создание аккаунта</h1>
+            <p>Получите доступ к корпоративному облаку с повышенной защитой.</p>
+            <form id="registerForm" class="form-grid" method="post" action="/auth/register">
+              <input type="hidden" name="_csrf" value="__CSRF_TOKEN__" data-csrf-field />
+              <label>
+                Имя
+                <input type="text" name="name" required autocomplete="name" />
+              </label>
+              <label>
+                Рабочий email
+                <input type="email" name="email" required autocomplete="email" />
+              </label>
+              <label>
+                Пароль
+                <input type="password" name="password" required minlength="8" autocomplete="new-password" />
+                <span class="form-hint">Минимум 8 символов, заглавная буква, цифра и спецсимвол.</span>
+              </label>
+              <button type="submit" class="btn">Создать аккаунт</button>
+            </form>
+            <p class="muted">Уже есть доступ? <a href="/login">Войдите</a>.</p>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>
