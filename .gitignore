@@ -1,0 +1,27 @@
+# Node
+node_modules/
+.pnp*
+
+# Build outputs
+client/dist/
+server/dist/
+server/public/*
+!server/public/.gitkeep
+coverage/
+*.log
+
+# Env
+.env
+.env.*
+
+# Data storage
+data/
+
+# Prisma
+server/prisma/*.db
+server/prisma/*.db-journal
+
+# Misc
+.DS_Store
+.idea/
+.vscode/

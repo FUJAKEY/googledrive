@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String      @id @default(cuid())
+  email      String      @unique
+  password   String
+  name       String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  sessions   Session[]
+  items      DriveItem[]
+  activities Activity[]  @relation("UserActivities")
+  shareLinks ShareLink[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+model DriveItem {
+  id          String       @id @default(cuid())
+  name        String
+  type        String       @default("FILE")
+  mimeType    String?
+  size        Int?
+  storageKey  String?
+  parentId    String?
+  parent      DriveItem?   @relation("DriveItemChildren", fields: [parentId], references: [id])
+  children    DriveItem[]  @relation("DriveItemChildren")
+  ownerId     String
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  isTrashed   Boolean      @default(false)
+  trashedAt   DateTime?
+  sharedLinks ShareLink[]
+  activities  Activity[]   @relation("ItemActivities")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([ownerId])
+  @@index([parentId])
+  @@index([isTrashed])
+}
+
+model ShareLink {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  permission String   @default("VIEW")
+  expiresAt  DateTime?
+  itemId     String
+  item       DriveItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model Activity {
+  id       String @id @default(cuid())
+  type     String
+  itemId   String?
+  item     DriveItem?    @relation("ItemActivities", fields: [itemId], references: [id])
+  actorId  String?
+  actor    User?         @relation("UserActivities", fields: [actorId], references: [id])
+  message  String
+  createdAt DateTime     @default(now())
+
+  @@index([createdAt])
+}
