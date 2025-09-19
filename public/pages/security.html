@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Безопасность Aurora Drive</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="security">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <h1>Архитектура безопасности</h1>
+            <div class="cards-grid">
+              <article class="card">
+                <h3>Шифрование</h3>
+                <p>AES-256 в покое, TLS 1.3 в транзите, аппаратные модули HSM для управления ключами.</p>
+              </article>
+              <article class="card">
+                <h3>Мониторинг</h3>
+                <p>Стриминг журналов в SIEM, поведенческая аналитика, автоматические расследования.</p>
+              </article>
+              <article class="card">
+                <h3>Доверенные зоны</h3>
+                <p>Сегментация по отделам, изоляция критичных данных, строгие политики DLP.</p>
+              </article>
+            </div>
+            <div class="card">
+              <h3>Матрица классификации</h3>
+              <table class="data-table" id="classificationMatrix">
+                <thead>
+                  <tr>
+                    <th>Уровень</th>
+                    <th>Описание</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

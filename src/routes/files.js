@@ -36,7 +36,14 @@ const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['application/pdf', 'image/png', 'image/jpeg', 'application/zip', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowed = [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'application/zip',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -45,31 +52,25 @@ const upload = multer({
   }
 });
 
-router.get('/files/upload', ensureAuthenticated, ensureTwoFactor, (req, res) => {
+router.get('/api/files/classifications', ensureAuthenticated, (req, res) => {
   const classifications = getAvailableClassificationsForRole(req.session.user.role);
-  res.render('files/upload', {
-    title: 'Загрузка документа',
-    classifications
-  });
+  res.json({ success: true, classifications });
 });
 
-router.post('/files/upload', ensureAuthenticated, ensureTwoFactor, upload.single('document'), async (req, res, next) => {
+router.post('/api/files', ensureAuthenticated, ensureTwoFactor, upload.single('document'), async (req, res) => {
   try {
     if (!req.file) {
-      req.flash('error', 'Файл обязателен для загрузки.');
-      return res.redirect('/files/upload');
+      return res.status(400).json({ success: false, message: 'Файл обязателен для загрузки.' });
     }
 
     const { classification, description } = req.body;
     const available = getAvailableClassificationsForRole(req.session.user.role).map((item) => item.value);
     if (!available.includes(classification)) {
-      req.flash('error', 'Недоступный уровень классификации.');
-      return res.redirect('/files/upload');
+      return res.status(403).json({ success: false, message: 'Недоступный уровень классификации.' });
     }
 
     if ((classification === 'confidential' || classification === 'topsecret') && !req.session.user.twoFactorEnabled) {
-      req.flash('error', 'Для работы с конфиденциальными файлами включите двухфакторную защиту.');
-      return res.redirect('/profile/security');
+      return res.status(403).json({ success: false, message: 'Для работы с конфиденциальными файлами включите двухфакторную защиту.' });
     }
 
     const record = await storeFileRecord({
@@ -84,22 +85,27 @@ router.post('/files/upload', ensureAuthenticated, ensureTwoFactor, upload.single
 
     await logAudit({ userId: req.session.user.id, action: 'files.upload', details: `${record.id}:${classification}` });
 
-    req.flash('success', 'Документ успешно загружен.');
-    return res.redirect('/dashboard');
+    return res.json({
+      success: true,
+      message: 'Документ успешно загружен.',
+      file: {
+        ...record,
+        formattedSize: formatBytes(record.size),
+        formattedDate: formatDate(record.created_at)
+      }
+    });
   } catch (error) {
     console.error('upload error', error);
-    req.flash('error', error.message || 'Не удалось загрузить файл.');
-    return res.redirect('/files/upload');
+    return res.status(400).json({ success: false, message: error.message || 'Не удалось загрузить файл.' });
   }
 });
 
-router.get('/files/:id', ensureAuthenticated, ensureTwoFactor, async (req, res, next) => {
+router.get('/api/files/:id', ensureAuthenticated, ensureTwoFactor, async (req, res) => {
   const { id } = req.params;
   try {
     const file = await getFileById(id);
     if (!file) {
-      req.flash('error', 'Файл не найден.');
-      return res.redirect('/dashboard');
+      return res.status(404).json({ success: false, message: 'Файл не найден.' });
     }
 
     const user = req.session.user;
@@ -107,19 +113,22 @@ router.get('/files/:id', ensureAuthenticated, ensureTwoFactor, async (req, res, 
     const classificationAllowed = canAccessClassification(user.role, file.classification);
 
     if (!isOwner && !classificationAllowed) {
-      req.flash('error', 'Нет доступа к данному уровню файла.');
-      return res.redirect('/dashboard');
+      return res.status(403).json({ success: false, message: 'Нет доступа к данному уровню файла.' });
     }
 
     if ((file.classification === 'confidential' || file.classification === 'topsecret') && !user.twoFactorEnabled) {
-      req.flash('error', 'Для просмотра требуется включенная двухфакторная защита.');
-      return res.redirect('/profile/security');
+      return res.status(403).json({ success: false, message: 'Для просмотра требуется включенная двухфакторная защита.' });
     }
 
-    const shares = isOwner ? await listSharesForFile(file.id) : [];
+    const shares = isOwner
+      ? (await listSharesForFile(file.id)).map((share) => ({
+          ...share,
+          formattedDate: formatDate(share.created_at)
+        }))
+      : [];
 
-    return res.render('files/detail', {
-      title: 'Карточка документа',
+    return res.json({
+      success: true,
       file: {
         ...file,
         formattedSize: formatBytes(file.size),
@@ -130,39 +139,69 @@ router.get('/files/:id', ensureAuthenticated, ensureTwoFactor, async (req, res, 
     });
   } catch (error) {
     console.error('detail error', error);
-    req.flash('error', 'Не удалось открыть карточку файла.');
-    return res.redirect('/dashboard');
+    return res.status(500).json({ success: false, message: 'Не удалось открыть карточку файла.' });
   }
 });
 
-router.post('/files/:id/share', ensureAuthenticated, ensureTwoFactor, async (req, res, next) => {
+router.get('/api/files/:id/download', ensureAuthenticated, ensureTwoFactor, async (req, res) => {
   const { id } = req.params;
-  const { email, permission } = req.body;
   try {
     const file = await getFileById(id);
-    if (!file || file.owner_id !== req.session.user.id) {
-      req.flash('error', 'Возможность обмена доступна только владельцу.');
-      return res.redirect('/dashboard');
+    if (!file) {
+      return res.status(404).json({ success: false, message: 'Файл не найден.' });
     }
 
-    await createShare({ fileId: id, targetEmail: email, permission: permission || 'viewer' });
-    await logAudit({ userId: req.session.user.id, action: 'files.share', details: `${id}:${email}` });
-    req.flash('success', 'Доступ предоставлен.');
-    return res.redirect(`/files/${id}`);
+    const user = req.session.user;
+    const isOwner = file.owner_id === user.id;
+    const classificationAllowed = canAccessClassification(user.role, file.classification);
+    if (!isOwner && !classificationAllowed) {
+      return res.status(403).json({ success: false, message: 'Нет доступа к данному уровню файла.' });
+    }
+    if ((file.classification === 'confidential' || file.classification === 'topsecret') && !user.twoFactorEnabled) {
+      return res.status(403).json({ success: false, message: 'Для скачивания требуется включенная двухфакторная защита.' });
+    }
+
+    const filepath = path.join(uploadDirectory, file.stored_name);
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ success: false, message: 'Файл недоступен на сервере.' });
+    }
+
+    await logAudit({ userId: user.id, action: 'files.download', details: id });
+    return res.download(filepath, file.original_name);
   } catch (error) {
-    console.error('share error', error);
-    req.flash('error', error.message || 'Не удалось предоставить доступ.');
-    return res.redirect(`/files/${id}`);
+    console.error('download error', error);
+    return res.status(500).json({ success: false, message: 'Не удалось подготовить файл к скачиванию.' });
   }
 });
 
-router.post('/files/:id/delete', ensureAuthenticated, ensureTwoFactor, async (req, res, next) => {
+router.post('/api/files/:id/shares', ensureAuthenticated, ensureTwoFactor, async (req, res) => {
+  const { id } = req.params;
+  const { email, permission } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email получателя обязателен.' });
+  }
+
+  try {
+    const file = await getFileById(id);
+    if (!file || file.owner_id !== req.session.user.id) {
+      return res.status(403).json({ success: false, message: 'Возможность обмена доступна только владельцу.' });
+    }
+
+    const share = await createShare({ fileId: id, targetEmail: email, permission: permission || 'viewer' });
+    await logAudit({ userId: req.session.user.id, action: 'files.share', details: `${id}:${email}` });
+    return res.json({ success: true, message: 'Доступ предоставлен.', share });
+  } catch (error) {
+    console.error('share error', error);
+    return res.status(400).json({ success: false, message: error.message || 'Не удалось предоставить доступ.' });
+  }
+});
+
+router.delete('/api/files/:id', ensureAuthenticated, ensureTwoFactor, async (req, res) => {
   const { id } = req.params;
   try {
     const file = await getFileById(id);
     if (!file || file.owner_id !== req.session.user.id) {
-      req.flash('error', 'Удалять файл может только владелец.');
-      return res.redirect('/dashboard');
+      return res.status(403).json({ success: false, message: 'Удалять файл может только владелец.' });
     }
 
     await deleteFile(id);
@@ -171,33 +210,27 @@ router.post('/files/:id/delete', ensureAuthenticated, ensureTwoFactor, async (re
       fs.unlinkSync(filepath);
     }
     await logAudit({ userId: req.session.user.id, action: 'files.delete', details: id });
-    req.flash('info', 'Файл удалён.');
-    return res.redirect('/dashboard');
+    return res.json({ success: true, message: 'Файл удалён.' });
   } catch (error) {
     console.error('delete error', error);
-    req.flash('error', 'Не удалось удалить файл.');
-    return res.redirect('/dashboard');
+    return res.status(500).json({ success: false, message: 'Не удалось удалить файл.' });
   }
 });
 
-router.post('/shares/:shareId/delete', ensureAuthenticated, ensureTwoFactor, async (req, res, next) => {
-  const { shareId } = req.params;
-  const { fileId } = req.body;
+router.delete('/api/files/:fileId/shares/:shareId', ensureAuthenticated, ensureTwoFactor, async (req, res) => {
+  const { fileId, shareId } = req.params;
   try {
     const file = await getFileById(fileId);
     if (!file || file.owner_id !== req.session.user.id) {
-      req.flash('error', 'Только владелец может отзывать доступ.');
-      return res.redirect('/dashboard');
+      return res.status(403).json({ success: false, message: 'Только владелец может отзывать доступ.' });
     }
 
     await removeShare(shareId);
     await logAudit({ userId: req.session.user.id, action: 'files.share.revoke', details: `${shareId}:${fileId}` });
-    req.flash('info', 'Доступ отозван.');
-    return res.redirect(`/files/${fileId}`);
+    return res.json({ success: true, message: 'Доступ отозван.' });
   } catch (error) {
     console.error('share revoke error', error);
-    req.flash('error', 'Не удалось отозвать доступ.');
-    return res.redirect(`/files/${fileId}`);
+    return res.status(500).json({ success: false, message: 'Не удалось отозвать доступ.' });
   }
 });
 

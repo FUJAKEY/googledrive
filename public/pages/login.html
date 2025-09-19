@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Вход в Aurora Drive</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="login">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="auth-section">
+          <div class="container auth-card">
+            <h1>Вход</h1>
+            <p>Авторизуйтесь, чтобы открыть защищённое пространство.</p>
+            <form id="loginForm" class="form-grid">
+              <label>
+                Email
+                <input type="email" name="email" required autocomplete="username" />
+              </label>
+              <label>
+                Пароль
+                <input type="password" name="password" required autocomplete="current-password" />
+              </label>
+              <button type="submit" class="btn">Войти</button>
+            </form>
+            <p class="muted">Нет аккаунта? <a href="/register">Зарегистрируйтесь за минуту</a>.</p>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

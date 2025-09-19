@@ -11,27 +11,22 @@ const {
 
 const router = express.Router();
 
-router.get('/login', (req, res) => {
-  if (req.session.userId) {
-    return res.redirect('/dashboard');
-  }
-  return res.render('login', { title: 'Вход' });
-});
-
-router.post('/login', async (req, res, next) => {
+router.post('/api/auth/login', async (req, res, next) => {
   const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Email и пароль обязательны.' });
+  }
+
   try {
     const user = await findUserByEmail(email);
     if (!user) {
-      req.flash('error', 'Неверный email или пароль.');
-      return res.redirect('/login');
+      return res.status(401).json({ success: false, message: 'Неверный email или пароль.' });
     }
 
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
       await logAudit({ userId: user.id, action: 'auth.failed', details: 'Неверный пароль' });
-      req.flash('error', 'Неверный email или пароль.');
-      return res.redirect('/login');
+      return res.status(401).json({ success: false, message: 'Неверный email или пароль.' });
     }
 
     if (user.two_factor_enabled) {
@@ -39,13 +34,12 @@ router.post('/login', async (req, res, next) => {
       req.session.twoFactorValidated = false;
       req.session.userId = null;
       req.session.user = null;
-      req.flash('info', 'Введите код двухфакторной аутентификации.');
       await logAudit({ userId: user.id, action: 'auth.2fa.required' });
-      return res.redirect('/2fa');
+      return res.json({ success: true, twoFactorRequired: true, message: 'Введите код двухфакторной аутентификации.' });
     }
 
     req.session.userId = user.id;
-    req.session.twoFactorValidated = false;
+    req.session.twoFactorValidated = true;
     req.session.user = {
       id: user.id,
       email: user.email,
@@ -55,70 +49,58 @@ router.post('/login', async (req, res, next) => {
     };
 
     await logAudit({ userId: user.id, action: 'auth.success' });
-    req.flash('success', 'Добро пожаловать!');
-    return res.redirect('/dashboard');
+    return res.json({ success: true, message: 'Добро пожаловать!' });
   } catch (error) {
     return next(error);
   }
 });
 
-router.get('/register', (req, res) => {
-  if (req.session.userId) {
-    return res.redirect('/dashboard');
-  }
-  return res.render('register', { title: 'Регистрация' });
-});
-
-router.post('/register', async (req, res, next) => {
+router.post('/api/auth/register', async (req, res, next) => {
   const { email, name, password } = req.body;
+  if (!email || !name || !password) {
+    return res.status(400).json({ success: false, message: 'Email, имя и пароль обязательны.' });
+  }
+
   try {
     await createUser({ email, name, password });
     const user = await findUserByEmail(email);
     await logAudit({ userId: user.id, action: 'auth.register' });
-    req.flash('success', 'Аккаунт создан. Теперь можно войти.');
-    return res.redirect('/login');
+    return res.json({ success: true, message: 'Аккаунт создан. Теперь можно войти.' });
   } catch (error) {
-    req.flash('error', error.message || 'Не удалось создать аккаунт.');
-    return res.redirect('/register');
+    return res.status(400).json({ success: false, message: error.message || 'Не удалось создать аккаунт.' });
   }
 });
 
-router.get('/2fa', async (req, res, next) => {
-  if (!req.session.pendingTwoFactor) {
-    if (req.session.userId) {
-      return res.redirect('/dashboard');
-    }
-    req.flash('error', 'Сессия двухфакторной авторизации не найдена.');
-    return res.redirect('/login');
+router.get('/api/auth/2fa/context', async (req, res, next) => {
+  const pendingUserId = req.session.pendingTwoFactor;
+  if (!pendingUserId) {
+    return res.status(404).json({ success: false, message: 'Сессия двухфакторной авторизации не найдена.' });
   }
 
   try {
-    const user = await findUserById(req.session.pendingTwoFactor);
+    const user = await findUserById(pendingUserId);
     if (!user) {
       req.session.pendingTwoFactor = null;
-      req.flash('error', 'Пользователь не найден.');
-      return res.redirect('/login');
+      return res.status(404).json({ success: false, message: 'Пользователь не найден.' });
     }
-    return res.render('two-factor', { title: 'Двухфакторная авторизация', email: user.email });
+    return res.json({ success: true, email: user.email });
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/2fa', async (req, res, next) => {
+router.post('/api/auth/2fa', async (req, res, next) => {
   const { token } = req.body;
   const pendingUserId = req.session.pendingTwoFactor;
   if (!pendingUserId) {
-    req.flash('error', 'Сессия двухфакторной авторизации истекла.');
-    return res.redirect('/login');
+    return res.status(400).json({ success: false, message: 'Сессия двухфакторной авторизации истекла.' });
   }
 
   try {
     const user = await findUserById(pendingUserId);
     if (!user || !user.two_factor_secret) {
-      req.flash('error', 'Невозможно подтвердить код.');
       req.session.pendingTwoFactor = null;
-      return res.redirect('/login');
+      return res.status(400).json({ success: false, message: 'Невозможно подтвердить код.' });
     }
 
     const verified = speakeasy.totp.verify({
@@ -130,8 +112,7 @@ router.post('/2fa', async (req, res, next) => {
 
     if (!verified) {
       await logAudit({ userId: user.id, action: 'auth.2fa.failed' });
-      req.flash('error', 'Неверный код.');
-      return res.redirect('/2fa');
+      return res.status(401).json({ success: false, message: 'Неверный код. Повторите попытку.' });
     }
 
     req.session.pendingTwoFactor = null;
@@ -146,21 +127,20 @@ router.post('/2fa', async (req, res, next) => {
     };
 
     await logAudit({ userId: user.id, action: 'auth.2fa.success' });
-    req.flash('success', 'Успешный вход.');
-    return res.redirect('/dashboard');
+    return res.json({ success: true, message: 'Успешный вход.' });
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/logout', (req, res) => {
+router.post('/api/auth/logout', (req, res) => {
   const userId = req.session.userId;
   req.session.destroy(() => {
     if (userId) {
       logAudit({ userId, action: 'auth.logout' }).catch(() => {});
     }
     res.clearCookie('connect.sid');
-    res.redirect('/');
+    res.json({ success: true });
   });
 });
 

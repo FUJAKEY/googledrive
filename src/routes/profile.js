@@ -7,19 +7,29 @@ const { saveTwoFactorSecret, disableTwoFactor, logAudit, findUserById } = requir
 
 const router = express.Router();
 
-router.get('/profile', ensureAuthenticated, async (req, res, next) => {
+router.get('/api/profile', ensureAuthenticated, async (req, res, next) => {
   try {
     const user = await findUserById(req.session.user.id);
-    return res.render('profile/index', {
-      title: 'Профиль пользователя',
-      user
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Пользователь не найден.' });
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        twoFactorEnabled: !!user.two_factor_enabled
+      }
     });
   } catch (error) {
     return next(error);
   }
 });
 
-router.get('/profile/security', ensureAuthenticated, async (req, res, next) => {
+router.get('/api/profile/security', ensureAuthenticated, async (req, res, next) => {
   try {
     let qrCode = null;
     const setup = req.session.twoFactorSetup;
@@ -27,10 +37,10 @@ router.get('/profile/security', ensureAuthenticated, async (req, res, next) => {
       qrCode = await QRCode.toDataURL(setup.otpauth);
     }
 
-    return res.render('profile/security', {
-      title: 'Центр безопасности',
+    return res.json({
+      success: true,
       twoFactorEnabled: req.session.user.twoFactorEnabled,
-      setup,
+      setup: setup || null,
       qrCode
     });
   } catch (error) {
@@ -38,7 +48,7 @@ router.get('/profile/security', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
-router.post('/profile/security/setup', ensureAuthenticated, (req, res) => {
+router.post('/api/profile/security/setup', ensureAuthenticated, (req, res) => {
   const secret = speakeasy.generateSecret({
     name: `Aurora Drive (${req.session.user.email})`,
     length: 32
@@ -49,16 +59,18 @@ router.post('/profile/security/setup', ensureAuthenticated, (req, res) => {
     otpauth: secret.otpauth_url
   };
 
-  req.flash('info', 'Отсканируйте QR-код и подтвердите кодом из приложения.');
-  return res.redirect('/profile/security');
+  res.json({
+    success: true,
+    message: 'Отсканируйте QR-код и подтвердите кодом из приложения.',
+    setup: req.session.twoFactorSetup
+  });
 });
 
-router.post('/profile/security/confirm', ensureAuthenticated, async (req, res, next) => {
+router.post('/api/profile/security/confirm', ensureAuthenticated, async (req, res, next) => {
   const { token } = req.body;
   const setup = req.session.twoFactorSetup;
   if (!setup) {
-    req.flash('error', 'Сессия настройки истекла.');
-    return res.redirect('/profile/security');
+    return res.status(400).json({ success: false, message: 'Сессия настройки истекла.' });
   }
 
   try {
@@ -70,8 +82,7 @@ router.post('/profile/security/confirm', ensureAuthenticated, async (req, res, n
     });
 
     if (!verified) {
-      req.flash('error', 'Код не подтверждён. Повторите попытку.');
-      return res.redirect('/profile/security');
+      return res.status(400).json({ success: false, message: 'Код не подтверждён. Повторите попытку.' });
     }
 
     await saveTwoFactorSecret(req.session.user.id, setup.base32, true);
@@ -80,22 +91,21 @@ router.post('/profile/security/confirm', ensureAuthenticated, async (req, res, n
     req.session.user.twoFactorEnabled = true;
     req.session.twoFactorValidated = true;
     req.session.twoFactorSetup = null;
-    req.flash('success', 'Двухфакторная защита активирована.');
-    return res.redirect('/profile/security');
+
+    return res.json({ success: true, message: 'Двухфакторная защита активирована.' });
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/profile/security/disable', ensureAuthenticated, async (req, res, next) => {
+router.post('/api/profile/security/disable', ensureAuthenticated, async (req, res, next) => {
   try {
     await disableTwoFactor(req.session.user.id);
     await logAudit({ userId: req.session.user.id, action: 'security.2fa.disabled' });
     req.session.user.twoFactorEnabled = false;
     req.session.twoFactorValidated = false;
     req.session.twoFactorSetup = null;
-    req.flash('info', 'Двухфакторная защита отключена.');
-    return res.redirect('/profile/security');
+    return res.json({ success: true, message: 'Двухфакторная защита отключена.' });
   } catch (error) {
     return next(error);
   }

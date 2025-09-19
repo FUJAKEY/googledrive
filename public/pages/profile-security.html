@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Центр безопасности</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script defer src="/js/main.js"></script>
+  </head>
+  <body data-page="profile-security">
+    <div class="app-shell">
+      <div data-include="header"></div>
+      <main class="app-main">
+        <section class="page-section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <h1>Центр безопасности</h1>
+                <p>Управляйте двухфакторной защитой и токенами доступа.</p>
+              </div>
+              <div class="section-actions">
+                <a class="btn btn-secondary" href="/profile">К профилю</a>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Статус MFA</h3>
+              <p>Текущее состояние: <strong data-mfa-status>—</strong></p>
+              <div class="mfa-actions">
+                <button class="btn" data-action="mfa-setup">Настроить MFA</button>
+                <button class="btn btn-danger" data-action="mfa-disable">Отключить</button>
+              </div>
+              <div class="mfa-setup" data-mfa-setup hidden>
+                <h4>Шаг 1. Отсканируйте QR-код</h4>
+                <img data-mfa-qr alt="QR код двухфакторной защиты" />
+                <p class="muted">Если камера недоступна, введите секрет вручную: <code data-mfa-secret></code></p>
+                <h4>Шаг 2. Подтвердите код</h4>
+                <form id="mfaConfirmForm" class="form-grid">
+                  <label>
+                    Код из приложения
+                    <input type="text" name="token" required pattern="\\d{6}" inputmode="numeric" maxlength="6" />
+                  </label>
+                  <button type="submit" class="btn">Подтвердить</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div data-include="footer"></div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>

@@ -1,20 +1,15 @@
 const express = require('express');
 
+const { CLASSIFICATION_MATRIX } = require('../utils/access');
+
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  if (req.session.userId) {
-    return res.redirect('/dashboard');
-  }
-  return res.render('index', { title: 'Aurora Drive — корпоративное хранилище' });
+router.get('/api/meta/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
-router.get('/security', (req, res) => {
-  return res.render('security', { title: 'Безопасность Aurora Drive' });
-});
-
-router.get('/support', (req, res) => {
-  return res.render('support', { title: 'Поддержка' });
+router.get('/api/meta/classification-matrix', (req, res) => {
+  res.json({ success: true, matrix: CLASSIFICATION_MATRIX });
 });
 
 module.exports = router;

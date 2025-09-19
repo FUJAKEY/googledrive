@@ -2,33 +2,30 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
-const flash = require('connect-flash');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 
 const { attachUser } = require('./middleware/auth');
-const { CLASSIFICATION_MATRIX } = require('./utils/access');
 
 const app = express();
 
-app.set('views', path.join(__dirname, '../views'));
-app.set('view engine', 'ejs');
-
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:'],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'", 'data:']
-    }
-  },
-  crossOriginEmbedderPolicy: false
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:'],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'data:']
+      }
+    },
+    crossOriginEmbedderPolicy: false
+  })
+);
 app.use(compression());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -41,7 +38,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 4
     },
@@ -52,21 +49,7 @@ app.use(
   })
 );
 
-app.use(flash());
 app.use(attachUser);
-
-app.use((req, res, next) => {
-  res.locals.bodyClass = '';
-  next();
-});
-
-app.use((req, res, next) => {
-  res.locals.successMessages = req.flash('success');
-  res.locals.errorMessages = req.flash('error');
-  res.locals.infoMessages = req.flash('info');
-  res.locals.classificationMatrix = CLASSIFICATION_MATRIX;
-  next();
-});
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -76,16 +59,34 @@ const loginLimiter = rateLimit({
   message: 'Слишком много попыток входа. Попробуйте позже.'
 });
 
-app.use('/login', loginLimiter);
-app.use('/2fa', loginLimiter);
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/2fa', loginLimiter);
 
 app.use(csrf());
 
-app.use((req, res, next) => {
-  res.locals.csrfToken = req.csrfToken();
-  next();
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
 });
 
+app.get('/api/session', (req, res) => {
+  if (!req.session.userId || !req.session.user) {
+    return res.json({ authenticated: false });
+  }
+
+  res.json({
+    authenticated: true,
+    user: {
+      id: req.session.user.id,
+      email: req.session.user.email,
+      name: req.session.user.name,
+      role: req.session.user.role,
+      twoFactorEnabled: !!req.session.user.twoFactorEnabled,
+      twoFactorValidated: !!req.session.twoFactorValidated
+    }
+  });
+});
+
+app.use('/', require('./routes/pages'));
 app.use('/', require('./routes/public'));
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/dashboard'));
@@ -94,37 +95,25 @@ app.use('/', require('./routes/profile'));
 app.use('/', require('./routes/admin'));
 
 app.use((req, res) => {
-  res.status(404);
-  return res.render('error', {
-    title: 'Страница не найдена',
-    message: 'Запрошенный ресурс отсутствует.',
-    bodyClass: 'page-error'
-  });
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'Ресурс не найден.' });
+  }
+  return res.status(404).sendFile(path.join(__dirname, '../public/pages/404.html'));
 });
 
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
-    req.flash('error', 'Сессия безопасности истекла. Повторите действие.');
-    return res.redirect('back');
-  }
-
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    req.flash('error', 'Размер файла превышает допустимый лимит (50 МБ).');
-    return res.redirect('/files/upload');
-  }
-
-  if (err.message && err.message.includes('Недопустимый тип файла')) {
-    req.flash('error', err.message);
-    return res.redirect('/files/upload');
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(403).json({ success: false, message: 'Сессия безопасности истекла. Обновите страницу и повторите действие.' });
+    }
+    return res.status(403).sendFile(path.join(__dirname, '../public/pages/403.html'));
   }
 
   console.error('Unhandled error', err);
-  res.status(500);
-  return res.render('error', {
-    title: 'Ошибка',
-    message: 'Произошла ошибка. Попробуйте позже.',
-    bodyClass: 'page-error'
-  });
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(500).json({ success: false, message: 'Произошла ошибка. Попробуйте позже.' });
+  }
+  return res.status(500).sendFile(path.join(__dirname, '../public/pages/500.html'));
 });
 
 module.exports = app;

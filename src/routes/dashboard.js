@@ -6,7 +6,7 @@ const { canAccessClassification } = require('../utils/access');
 
 const router = express.Router();
 
-router.get('/dashboard', ensureAuthenticated, ensureTwoFactor, async (req, res, next) => {
+router.get('/api/dashboard/files', ensureAuthenticated, ensureTwoFactor, async (req, res, next) => {
   try {
     const user = req.session.user;
     const files = await listFilesForUser(user);
@@ -27,10 +27,7 @@ router.get('/dashboard', ensureAuthenticated, ensureTwoFactor, async (req, res, 
       formattedDate: formatDate(file.created_at)
     }));
 
-    return res.render('dashboard', {
-      title: 'Рабочее пространство',
-      files: enriched
-    });
+    return res.json({ success: true, files: enriched });
   } catch (error) {
     return next(error);
   }

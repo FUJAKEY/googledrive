@@ -1,5 +1,9 @@
 const { findUserById } = require('../services/database');
 
+function isApiRequest(req) {
+  return req.originalUrl.startsWith('/api/');
+}
+
 async function attachUser(req, res, next) {
   if (!req.session.userId) {
     req.user = null;
@@ -24,7 +28,6 @@ async function attachUser(req, res, next) {
     }
 
     req.user = req.session.user;
-    res.locals.currentUser = req.session.user;
     next();
   } catch (error) {
     next(error);
@@ -33,7 +36,9 @@ async function attachUser(req, res, next) {
 
 function ensureAuthenticated(req, res, next) {
   if (!req.session.userId) {
-    req.flash('error', 'Для доступа необходимо войти в систему.');
+    if (isApiRequest(req)) {
+      return res.status(401).json({ success: false, message: 'Для доступа необходимо войти в систему.' });
+    }
     return res.redirect('/login');
   }
   return next();
@@ -43,7 +48,9 @@ function ensureRole(requiredRole) {
   return (req, res, next) => {
     const user = req.session.user;
     if (!user) {
-      req.flash('error', 'Необходима авторизация.');
+      if (isApiRequest(req)) {
+        return res.status(401).json({ success: false, message: 'Необходима авторизация.' });
+      }
       return res.redirect('/login');
     }
 
@@ -52,7 +59,9 @@ function ensureRole(requiredRole) {
     const requiredIndex = hierarchy.indexOf(requiredRole);
 
     if (userIndex === -1 || requiredIndex === -1 || userIndex < requiredIndex) {
-      req.flash('error', 'Недостаточно прав для выполнения действия.');
+      if (isApiRequest(req)) {
+        return res.status(403).json({ success: false, message: 'Недостаточно прав для выполнения действия.' });
+      }
       return res.redirect('/dashboard');
     }
 
@@ -63,6 +72,9 @@ function ensureRole(requiredRole) {
 function ensureTwoFactor(req, res, next) {
   const user = req.session.user;
   if (user && user.twoFactorEnabled && !req.session.twoFactorValidated) {
+    if (isApiRequest(req)) {
+      return res.status(403).json({ success: false, message: 'Требуется подтверждение двухфакторной аутентификации.' });
+    }
     return res.redirect('/2fa');
   }
   return next();
