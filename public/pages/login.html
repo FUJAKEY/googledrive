@@ -16,7 +16,8 @@
             <span class="eyebrow">Доступ к Aurora Drive</span>
             <h1>Вход</h1>
             <p>Авторизуйтесь, чтобы открыть защищённое пространство.</p>
-            <form id="loginForm" class="form-grid">
+            <form id="loginForm" class="form-grid" method="post" action="/auth/login">
+              <input type="hidden" name="_csrf" data-csrf-field />
               <label>
                 Email
                 <input type="email" name="email" required autocomplete="username" />

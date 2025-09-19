@@ -16,7 +16,8 @@
             <span class="eyebrow">Создание организации</span>
             <h1>Создание аккаунта</h1>
             <p>Получите доступ к корпоративному облаку с повышенной защитой.</p>
-            <form id="registerForm" class="form-grid">
+            <form id="registerForm" class="form-grid" method="post" action="/auth/register">
+              <input type="hidden" name="_csrf" data-csrf-field />
               <label>
                 Имя
                 <input type="text" name="name" required autocomplete="name" />
@@ -28,6 +29,7 @@
               <label>
                 Пароль
                 <input type="password" name="password" required minlength="8" autocomplete="new-password" />
+                <span class="form-hint">Минимум 8 символов, заглавная буква, цифра и спецсимвол.</span>
               </label>
               <button type="submit" class="btn">Создать аккаунт</button>
             </form>

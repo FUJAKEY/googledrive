@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
@@ -10,6 +11,11 @@ const csrf = require('csurf');
 const { attachUser } = require('./middleware/auth');
 
 const app = express();
+
+const dataDir = process.env.DATA_DIR || path.join(__dirname, '../data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
 app.use(
   helmet({
@@ -44,7 +50,7 @@ app.use(
     },
     store: new SQLiteStore({
       db: 'sessions.db',
-      dir: path.join(__dirname, '../data')
+      dir: dataDir
     })
   })
 );
@@ -61,6 +67,8 @@ const loginLimiter = rateLimit({
 
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/2fa', loginLimiter);
+app.use('/auth/login', loginLimiter);
+app.use('/auth/2fa', loginLimiter);
 
 app.use(csrf());
 

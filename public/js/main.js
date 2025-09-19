@@ -4,10 +4,12 @@
     csrfToken: null,
     toastTimer: null
   };
+  const queryMessageKeys = ['success', 'error', 'info'];
 
   document.addEventListener('DOMContentLoaded', async () => {
     try {
       await injectPartials();
+      showMessageFromQuery();
       document.body.classList.add('app-mounted');
       await refreshSession();
       setupNavigation();
@@ -20,6 +22,51 @@
       document.body.classList.add('app-loaded');
     }
   });
+
+  function showMessageFromQuery() {
+    if (!window.location.search) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    let consumed = false;
+    queryMessageKeys.forEach((key) => {
+      const value = params.get(key);
+      if (value) {
+        showToast(value, key === 'info' ? 'info' : key);
+        consumed = true;
+      }
+    });
+    if (consumed && window.history?.replaceState) {
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }
+
+  function updateCsrfFields(token) {
+    if (!token) {
+      return;
+    }
+    document.querySelectorAll('[data-csrf-field]').forEach((field) => {
+      field.value = token;
+    });
+  }
+
+  async function ensureFormCsrfField(form) {
+    if (!form) {
+      return;
+    }
+    try {
+      const token = await ensureCsrfToken();
+      const field = form.querySelector('[data-csrf-field]');
+      if (field) {
+        field.value = token;
+      }
+    } catch (error) {
+      console.error('Не удалось подготовить CSRF-токен для формы', error);
+      showToast('Не удалось подготовить защиту формы. Обновите страницу и попробуйте снова.', 'error');
+      throw error;
+    }
+  }
 
   async function injectPartials() {
     await Promise.all([injectPartial('header'), injectPartial('footer')]);
@@ -175,6 +222,7 @@
 
   async function ensureCsrfToken() {
     if (state.csrfToken) {
+      updateCsrfFields(state.csrfToken);
       return state.csrfToken;
     }
     const response = await fetch('/api/csrf-token', {
@@ -187,6 +235,7 @@
     }
     const data = await response.json();
     state.csrfToken = data.csrfToken;
+    updateCsrfFields(state.csrfToken);
     return state.csrfToken;
   }
 
@@ -300,6 +349,12 @@
     const form = document.getElementById('loginForm');
     if (!form) return;
 
+    try {
+      await ensureFormCsrfField(form);
+    } catch (error) {
+      return;
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(form);
@@ -321,6 +376,12 @@
   async function initRegister() {
     const form = document.getElementById('registerForm');
     if (!form) return;
+
+    try {
+      await ensureFormCsrfField(form);
+    } catch (error) {
+      return;
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -350,6 +411,12 @@
 
     const form = document.getElementById('twoFactorForm');
     if (!form) return;
+
+    try {
+      await ensureFormCsrfField(form);
+    } catch (error) {
+      return;
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();

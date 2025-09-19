@@ -16,7 +16,8 @@
             <span class="eyebrow">Второй фактор</span>
             <h1>Подтверждение входа</h1>
             <p>Введите одноразовый код из приложения-аутентификатора для <span data-twofactor-email>аккаунта</span>.</p>
-            <form id="twoFactorForm" class="form-grid">
+            <form id="twoFactorForm" class="form-grid" method="post" action="/auth/2fa">
+              <input type="hidden" name="_csrf" data-csrf-field />
               <label>
                 Код подтверждения
                 <input type="text" name="token" required pattern="\\d{6}" inputmode="numeric" maxlength="6" />
