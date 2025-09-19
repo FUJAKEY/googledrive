@@ -1,0 +1,31 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1>Загрузка файла</h1>
+    <p class="page-subtitle">Выберите файл и загрузите его в безопасное облачное хранилище.</p>
+  </div>
+  <% const backLink = parentPath && parentPath !== '/' ? `/dashboard?path=${encodeURIComponent(parentPath)}` : '/dashboard'; %>
+  <a class="btn btn-outline" href="<%= backLink %>">Вернуться</a>
+</section>
+<section class="upload">
+  <form action="/files/upload" method="post" enctype="multipart/form-data" class="upload-form" id="upload-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <input type="hidden" name="parentPath" value="<%= parentPath %>" />
+    <div class="dropzone" data-dropzone>
+      <p>Перетащите файл сюда или нажмите для выбора</p>
+      <p class="dropzone-meta">Максимальный размер файла: <strong><%= uploadLimitMb %> МБ</strong></p>
+      <input type="file" name="file" id="file" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Начать загрузку</button>
+  </form>
+  <aside class="upload-aside">
+    <h2>Советы по безопасности</h2>
+    <ul>
+      <li>Перед загрузкой убедитесь в безопасности файла.</li>
+      <li>Используйте понятные названия, чтобы легко находить документы.</li>
+      <li>Не загружайте исполняемые файлы — они блокируются системой.</li>
+      <li>В настройках включите уведомления о входе для дополнительной защиты.</li>
+    </ul>
+  </aside>
+</section>
+<%- include('../partials/layout-end') %>

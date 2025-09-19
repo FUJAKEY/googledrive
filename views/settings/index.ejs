@@ -1,0 +1,81 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1>Настройки безопасности</h1>
+    <p class="page-subtitle">Управляйте профилем и контролируйте параметры защиты аккаунта.</p>
+  </div>
+  <a class="btn btn-outline" href="/dashboard">Вернуться</a>
+</section>
+<section class="settings-grid">
+  <article class="settings-card">
+    <h2>Профиль</h2>
+    <form action="/settings/profile" method="post" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="form-field">
+        <label for="name">Имя</label>
+        <input type="text" id="name" name="name" required value="<%= user.name %>" />
+      </div>
+      <div class="form-field toggle">
+        <label for="loginNotifications">Уведомления о входе</label>
+        <input
+          type="checkbox"
+          id="loginNotifications"
+          name="loginNotifications"
+          <%= user.security && user.security.loginNotifications ? 'checked' : '' %>
+        />
+        <span class="toggle-hint">Получайте уведомления при входе в аккаунт.</span>
+      </div>
+      <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+    </form>
+  </article>
+  <article class="settings-card">
+    <h2>Смена пароля</h2>
+    <form action="/settings/password" method="post" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="form-field">
+        <label for="currentPassword">Текущий пароль</label>
+        <input type="password" id="currentPassword" name="currentPassword" required autocomplete="current-password" />
+      </div>
+      <div class="form-field">
+        <label for="newPassword">Новый пароль</label>
+        <input type="password" id="newPassword" name="newPassword" required autocomplete="new-password" />
+        <small class="form-hint">Минимум 8 символов, обязательны цифры, строчные и заглавные буквы.</small>
+      </div>
+      <div class="form-field">
+        <label for="confirmPassword">Подтверждение пароля</label>
+        <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" />
+      </div>
+      <button type="submit" class="btn btn-outline">Обновить пароль</button>
+    </form>
+  </article>
+  <article class="settings-card stats">
+    <h2>Статистика</h2>
+    <ul>
+      <li>
+        <span>Всего файлов</span>
+        <strong><%= stats.totalFiles %></strong>
+      </li>
+      <li>
+        <span>Использовано места</span>
+        <strong><%= stats.readableSize %></strong>
+      </li>
+      <li>
+        <span>Последнее изменение пароля</span>
+        <strong>
+          <%= user.security && user.security.passwordUpdatedAt
+            ? new Date(user.security.passwordUpdatedAt).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+            : 'Не задано' %>
+        </strong>
+      </li>
+      <li>
+        <span>Последний вход</span>
+        <strong>
+          <%= user.lastLoginAt
+            ? new Date(user.lastLoginAt).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+            : 'Ещё не входили' %>
+        </strong>
+      </li>
+    </ul>
+  </article>
+</section>
+<%- include('../partials/layout-end') %>

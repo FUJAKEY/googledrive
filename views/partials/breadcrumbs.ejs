@@ -1,0 +1,16 @@
+<% if (breadcrumbs && breadcrumbs.length) { %>
+<nav class="breadcrumbs" aria-label="Навигация по папкам">
+  <ol>
+    <% breadcrumbs.forEach((crumb, index) => { %>
+      <% const link = crumb.path === '/' ? '/dashboard' : `/dashboard?path=${encodeURIComponent(crumb.path)}`; %>
+      <li>
+        <% if (index === breadcrumbs.length - 1) { %>
+          <span aria-current="page"><%= crumb.name %></span>
+        <% } else { %>
+          <a href="<%= link %>"><%= crumb.name %></a>
+        <% } %>
+      </li>
+    <% }); %>
+  </ol>
+</nav>
+<% } %>

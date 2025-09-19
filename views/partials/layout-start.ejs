@@ -1,0 +1,45 @@
+<%- include('partials/head', { title }) %>
+  <body class="theme-light">
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="header-left">
+          <a class="logo" href="/dashboard">
+            <span class="logo-mark">SD</span>
+            <span class="logo-text"><%= appName %></span>
+          </a>
+          <% if (currentUser) { %>
+          <form class="search" action="/dashboard/search" method="get">
+            <input
+              type="search"
+              name="q"
+              placeholder="Поиск по файлам"
+              value="<%= typeof query !== 'undefined' ? query : '' %>"
+              aria-label="Поиск"
+              required
+              minlength="2"
+            />
+            <button type="submit" aria-label="Начать поиск">🔍</button>
+          </form>
+          <% } %>
+        </div>
+        <nav class="main-nav">
+          <a href="/dashboard" class="nav-link <%= currentPath.startsWith('/dashboard') ? 'is-active' : '' %>">Диск</a>
+          <a href="/dashboard/activity" class="nav-link <%= currentPath.includes('activity') ? 'is-active' : '' %>">Активность</a>
+          <a href="/files/upload" class="nav-link <%= currentPath.startsWith('/files/upload') ? 'is-active' : '' %>">Загрузить</a>
+          <a href="/settings" class="nav-link <%= currentPath.startsWith('/settings') ? 'is-active' : '' %>">Настройки</a>
+        </nav>
+        <div class="header-right">
+          <% if (currentUser) { %>
+          <span class="user-chip" title="<%= currentUser.email %>"><%= currentUser.name %></span>
+          <form class="logout-form" action="/auth/logout" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <button type="submit" class="btn btn-outline">Выйти</button>
+          </form>
+          <% } else { %>
+          <a class="btn" href="/auth/login">Войти</a>
+          <% } %>
+        </div>
+      </header>
+      <main class="app-main">
+        <div class="container">
+          <%- include('partials/flash') %>

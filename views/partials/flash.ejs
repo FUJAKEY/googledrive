@@ -1,0 +1,9 @@
+<% const flashMessages = flash || {}; %>
+<% Object.entries(flashMessages).forEach(([type, messages]) => { %>
+  <% messages.forEach((message) => { %>
+    <div class="flash flash-<%= type %>" role="alert">
+      <span><%= message %></span>
+      <button type="button" class="flash-close" data-action="dismiss">×</button>
+    </div>
+  <% }) %>
+<% }); %>

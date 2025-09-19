@@ -1,0 +1,32 @@
+<%- include('../partials/layout-start', { title }) %>
+<section class="page-header">
+  <div>
+    <h1>Поиск</h1>
+    <p class="page-subtitle">Результаты по запросу «<%= query %>»</p>
+  </div>
+  <a class="btn btn-outline" href="/dashboard">Назад</a>
+</section>
+<section class="search-results">
+  <% if (typeof errors !== 'undefined' && errors.length) { %>
+  <ul class="form-errors">
+    <% errors.forEach((error) => { %>
+    <li><%= error.msg %></li>
+    <% }); %>
+  </ul>
+  <% } %>
+  <% if (results && results.length) { %>
+  <ul class="result-list">
+    <% results.forEach((item) => { %>
+    <li>
+      <span class="result-type"><%= item.type === 'folder' ? 'Папка' : 'Файл' %></span>
+      <% const target = item.type === 'folder' ? `/dashboard?path=${encodeURIComponent(item.fullPath)}` : `/files/${item.id}`; %>
+      <a href="<%= target %>"><%= item.name %></a>
+      <span class="result-meta"><%= new Date(item.createdAt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) %></span>
+    </li>
+    <% }); %>
+  </ul>
+  <% } else if (!errors || errors.length === 0) { %>
+  <p class="empty-state">Ничего не найдено. Попробуйте уточнить запрос.</p>
+  <% } %>
+</section>
+<%- include('../partials/layout-end') %>
