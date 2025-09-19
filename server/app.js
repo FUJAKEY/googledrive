@@ -13,7 +13,11 @@ const dotenv = require('dotenv');
 
 const { ensureAuthenticated } = require('./middleware/auth');
 const flash = require('./middleware/flash');
-const security = require('./middleware/security');
+const {
+  generalRateLimiter,
+  authRateLimiter,
+  attachSecurityHeaders
+} = require('./middleware/security');
 const { initStorage } = require('./services/storage');
 const logger = require('./utils/logger');
 
@@ -65,7 +69,7 @@ app.use(helmet({
 }));
 app.use(hpp());
 app.use(nocache());
-app.use(security.globalRateLimiter);
+app.use(generalRateLimiter);
 app.use(compression());
 app.use(morgan('combined'));
 app.use(express.urlencoded({ extended: false }));
@@ -91,7 +95,7 @@ app.use(session({
 }));
 
 app.use(flash());
-app.use(security.attachSecurityHeaders);
+app.use(attachSecurityHeaders);
 
 const csrfProtection = csrf();
 app.use(csrfProtection);
@@ -114,7 +118,7 @@ app.use('/', (req, res, next) => {
   return next();
 });
 
-app.use('/auth', security.authRateLimiter, authRoutes);
+app.use('/auth', authRateLimiter, authRoutes);
 app.use('/dashboard', ensureAuthenticated, dashboardRoutes);
 app.use('/files', ensureAuthenticated, filesRoutes);
 app.use('/settings', ensureAuthenticated, settingsRoutes);
