@@ -1,0 +1,21 @@
+<%- include('partials/layout-head'); %>
+<section class="auth-card">
+  <div class="card">
+    <h1>Вход</h1>
+    <p class="text-muted">Авторизуйтесь, чтобы перейти в рабочее пространство.</p>
+    <form method="post" action="/login" class="form-grid">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label>
+        <span>Пароль</span>
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn btn-lg">Войти</button>
+    </form>
+    <p class="text-muted">Нет аккаунта? <a href="/register">Создайте его</a>.</p>
+  </div>
+</section>
+<%- include('partials/layout-foot'); %>

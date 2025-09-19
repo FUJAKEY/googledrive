@@ -1,0 +1,41 @@
+{
+  "name": "aurora-drive",
+  "version": "1.0.0",
+  "description": "Безопасное веб-приложение для хранения и обмена файлами с многоуровневой защитой.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"No automated tests configured\""
+  },
+  "keywords": [
+    "drive",
+    "secure",
+    "express",
+    "node"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "compression": "^1.7.4",
+    "connect-flash": "^0.1.1",
+    "connect-sqlite3": "^0.9.15",
+    "csurf": "^1.11.0",
+    "ejs": "^3.1.9",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "express-session": "^1.17.3",
+    "helmet": "^7.0.0",
+    "luxon": "^3.4.4",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.3",
+    "speakeasy": "^2.0.0",
+    "sqlite3": "^5.1.7",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

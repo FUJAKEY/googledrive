@@ -1,0 +1,58 @@
+<%- include('partials/layout-head'); %>
+<section class="dashboard">
+  <header class="dashboard-header">
+    <div>
+      <h1>Рабочая зона</h1>
+      <p class="text-muted">Ваши последние документы и активные предоставленные доступы.</p>
+    </div>
+    <div class="dashboard-actions">
+      <a class="btn" href="/files/upload">Загрузить документ</a>
+      <a class="btn btn-secondary" href="/security">Матрица защиты</a>
+    </div>
+  </header>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-title">Всего файлов</span>
+      <span class="stat-value"><%= files.length %></span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Уровни доступа</span>
+      <div class="badge-row">
+        <% Object.entries(classificationMatrix).forEach(([key, meta]) => { %>
+          <span class="badge" data-level="<%= key %>"><%= meta.label %></span>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+  <div class="file-table">
+    <div class="table-header">
+      <span>Документ</span>
+      <span>Размер</span>
+      <span>Классификация</span>
+      <span>Дата</span>
+      <span></span>
+    </div>
+    <% if (files.length === 0) { %>
+      <div class="table-row empty">
+        <p>Загрузите первый файл, чтобы начать совместную работу.</p>
+      </div>
+    <% } %>
+    <% files.forEach((file) => { %>
+      <div class="table-row">
+        <div>
+          <strong><a href="/files/<%= file.id %>"><%= file.original_name %></a></strong>
+          <p class="text-muted"><%= file.description || 'Без описания' %></p>
+        </div>
+        <div><%= file.formattedSize %></div>
+        <div>
+          <span class="badge" data-level="<%= file.classification %>"><%= classificationMatrix[file.classification].label %></span>
+        </div>
+        <div><%= file.formattedDate %></div>
+        <div>
+          <a class="link" href="/files/<%= file.id %>">Подробнее</a>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+</section>
+<%- include('partials/layout-foot'); %>

@@ -1,0 +1,47 @@
+<%- include('../partials/layout-head'); %>
+<section class="security-center">
+  <h1>Центр безопасности</h1>
+  <div class="security-status">
+    <div class="status-card large">
+      <span class="detail-title">Двухфакторная защита</span>
+      <p><%= twoFactorEnabled ? 'Активирована' : 'Отключена' %></p>
+      <% if (twoFactorEnabled) { %>
+        <form method="post" action="/profile/security/disable" onsubmit="return confirm('Отключить двухфакторную защиту?');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-secondary">Отключить</button>
+        </form>
+      <% } else { %>
+        <form method="post" action="/profile/security/setup">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn">Начать настройку</button>
+        </form>
+      <% } %>
+    </div>
+    <% if (setup) { %>
+      <div class="status-card">
+        <span class="detail-title">Шаг 1. Сканируйте QR</span>
+        <% if (qrCode) { %>
+          <img class="qr" src="<%= qrCode %>" alt="QR код двухфакторной защиты">
+        <% } %>
+        <p class="text-muted">Или введите вручную: <code><%= setup.base32 %></code></p>
+      </div>
+      <div class="status-card">
+        <span class="detail-title">Шаг 2. Подтвердите</span>
+        <form method="post" action="/profile/security/confirm" class="form-inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="text" name="token" placeholder="6-значный код" required maxlength="6" pattern="[0-9]{6}">
+          <button type="submit" class="btn">Подтвердить</button>
+        </form>
+      </div>
+    <% } %>
+  </div>
+  <section class="security-tips">
+    <h2>Рекомендации по защите</h2>
+    <ul>
+      <li>Сохраняйте резервные коды восстановления в офлайн-хранилище.</li>
+      <li>Используйте корпоративные менеджеры паролей.</li>
+      <li>Настройте уведомления о подозрительной активности.</li>
+    </ul>
+  </section>
+</section>
+<%- include('../partials/layout-foot'); %>
