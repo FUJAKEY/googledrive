@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const data = await response.json();
       storeSession(data.user, data.accessToken);
-    } catch (error) {
+    } catch {
       clearSession();
     }
   }, [clearSession, storeSession]);

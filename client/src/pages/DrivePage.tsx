@@ -106,7 +106,7 @@ export function DrivePage() {
       } else {
         setPreviewData({ type: 'unknown' });
       }
-    } catch (error) {
+    } catch {
       toast.error('Не удалось загрузить предпросмотр');
       setPreviewData({ type: 'unknown' });
     }
@@ -178,7 +178,7 @@ export function DrivePage() {
       }
       refreshDrive();
       toast.success('Загрузка завершена');
-    } catch (error) {
+    } catch {
       toast.error('Не удалось загрузить файлы');
     } finally {
       setUploading(false);

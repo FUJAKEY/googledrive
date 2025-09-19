@@ -34,13 +34,14 @@ async function buildBreadcrumbs(userId: string, parentId?: string | null) {
   const breadcrumbs: { id: string; name: string }[] = [];
   let currentId: string | null | undefined = parentId;
   while (currentId) {
-    const parent = await prisma.driveItem.findFirst({
-      where: { id: currentId, ownerId: userId },
-      select: { id: true, name: true, parentId: true }
-    });
-    if (!parent) break;
-    breadcrumbs.push({ id: parent.id, name: parent.name });
-    currentId = parent.parentId;
+    const parentItem: { id: string; name: string; parentId: string | null } | null =
+      await prisma.driveItem.findFirst({
+        where: { id: currentId, ownerId: userId },
+        select: { id: true, name: true, parentId: true }
+      });
+    if (!parentItem) break;
+    breadcrumbs.push({ id: parentItem.id, name: parentItem.name });
+    currentId = parentItem.parentId;
   }
   return breadcrumbs.reverse();
 }
@@ -102,7 +103,7 @@ driveRouter.get('/list', async (req, res, next) => {
     }
 
     if (parsed.search) {
-      where.name = { contains: parsed.search, mode: 'insensitive' };
+      where.name = { contains: parsed.search };
     }
 
     const orderBy = parsed.sort
@@ -136,13 +137,13 @@ driveRouter.post('/folder', async (req, res, next) => {
     const user = req.user!;
 
     if (parsed.parentId) {
-      const parent = await prisma.driveItem.findFirst({
+      const parentItem = await prisma.driveItem.findFirst({
         where: { id: parsed.parentId, ownerId: user.id }
       });
-      if (!parent) {
+      if (!parentItem) {
         return res.status(404).json({ message: 'Родительская папка не найдена' });
       }
-      if (parent.type !== DRIVE_ITEM_TYPES.FOLDER) {
+      if (parentItem.type !== DRIVE_ITEM_TYPES.FOLDER) {
         return res.status(400).json({ message: 'Родителем может быть только папка' });
       }
     }
@@ -177,10 +178,10 @@ driveRouter.post('/file', upload.array('files'), async (req, res, next) => {
     const files = req.files as Express.Multer.File[];
     const parentId = req.body.parentId || null;
     if (parentId) {
-      const parent = await prisma.driveItem.findFirst({
+      const parentItem = await prisma.driveItem.findFirst({
         where: { id: parentId, ownerId: user.id }
       });
-      if (!parent || parent.type !== DRIVE_ITEM_TYPES.FOLDER) {
+      if (!parentItem || parentItem.type !== DRIVE_ITEM_TYPES.FOLDER) {
         return res.status(400).json({ message: 'Некорректная родительская папка' });
       }
     }
@@ -245,10 +246,10 @@ driveRouter.patch('/:id', async (req, res, next) => {
       if (parsed.parentId === item.id) {
         return res.status(400).json({ message: 'Нельзя переместить элемент в себя' });
       }
-      const parent = await prisma.driveItem.findFirst({
+      const parentItem = await prisma.driveItem.findFirst({
         where: { id: parsed.parentId, ownerId: user.id }
       });
-      if (!parent || parent.type !== DRIVE_ITEM_TYPES.FOLDER) {
+      if (!parentItem || parentItem.type !== DRIVE_ITEM_TYPES.FOLDER) {
         return res.status(400).json({ message: 'Некорректная папка назначения' });
       }
     }

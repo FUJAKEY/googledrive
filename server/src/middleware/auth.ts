@@ -16,7 +16,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
     req.user = user;
     return next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ message: 'Недействительный токен' });
   }
 }
