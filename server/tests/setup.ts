@@ -20,15 +20,17 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import type { PrismaClient } from '@prisma/client';
 
+execSync('npx prisma generate --schema prisma/schema.prisma', { stdio: 'inherit' });
+
 let prisma: PrismaClient;
 let storage: { init(): Promise<void> };
 let config: typeof import('../src/config.js').config;
 
 beforeAll(async () => {
+  execSync('npx prisma db push --force-reset --schema prisma/schema.prisma', { stdio: 'inherit' });
   ({ config } = await import('../src/config.js'));
   ({ prisma } = await import('../src/lib/prisma.js'));
   ({ storage } = await import('../src/services/storage.js'));
-  execSync('npx prisma db push --force-reset --schema prisma/schema.prisma', { stdio: 'inherit' });
   await storage.init();
 });
 
