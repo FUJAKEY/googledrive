@@ -131,14 +131,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authorizedFetch = useCallback(
     async <T,>(path: string, init?: RequestInit) => {
       const execute = async (token?: string): Promise<T> => {
+        const headers = new Headers(init?.headers ?? {});
+        const isFormData =
+          typeof FormData !== 'undefined' && init?.body instanceof FormData;
+
+        if (!isFormData && !headers.has('Content-Type')) {
+          headers.set('Content-Type', 'application/json');
+        }
+
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+
         const response = await fetch(buildUrl(path), {
           ...init,
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(init?.headers ?? {}),
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
+          headers
         });
         if (response.status === 401) {
           throw new Error('unauthorized');
