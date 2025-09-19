@@ -7,6 +7,7 @@
   const queryMessageKeys = ['success', 'error', 'info'];
 
   document.addEventListener('DOMContentLoaded', async () => {
+    hydrateInitialCsrfToken();
     try {
       await injectPartials();
       showMessageFromQuery();
@@ -51,21 +52,48 @@
     });
   }
 
-  async function ensureFormCsrfField(form) {
-    if (!form) {
+  function hydrateInitialCsrfToken() {
+    if (state.csrfToken) {
       return;
     }
+    const presetField = document.querySelector('[data-csrf-field]');
+    if (presetField?.value) {
+      state.csrfToken = presetField.value;
+    }
+  }
+
+  async function ensureFormCsrfField(form) {
+    if (!form) {
+      return false;
+    }
+    const field = form.querySelector('[data-csrf-field]');
+    if (!field) {
+      return true;
+    }
+    const fallbackToken = field.value;
     try {
       const token = await ensureCsrfToken();
-      const field = form.querySelector('[data-csrf-field]');
-      if (field) {
+      if (token) {
         field.value = token;
+        return true;
       }
     } catch (error) {
       console.error('Не удалось подготовить CSRF-токен для формы', error);
-      showToast('Не удалось подготовить защиту формы. Обновите страницу и попробуйте снова.', 'error');
-      throw error;
+      if (!fallbackToken) {
+        showToast('Не удалось подготовить защиту формы. Обновите страницу и попробуйте снова.', 'error');
+        return false;
+      }
+      state.csrfToken = fallbackToken;
+      return true;
     }
+
+    if (fallbackToken) {
+      state.csrfToken = fallbackToken;
+      return true;
+    }
+
+    showToast('Не удалось подготовить защиту формы. Обновите страницу и попробуйте снова.', 'error');
+    return false;
   }
 
   async function injectPartials() {
@@ -349,9 +377,8 @@
     const form = document.getElementById('loginForm');
     if (!form) return;
 
-    try {
-      await ensureFormCsrfField(form);
-    } catch (error) {
+    const ready = await ensureFormCsrfField(form);
+    if (!ready) {
       return;
     }
 
@@ -377,9 +404,8 @@
     const form = document.getElementById('registerForm');
     if (!form) return;
 
-    try {
-      await ensureFormCsrfField(form);
-    } catch (error) {
+    const ready = await ensureFormCsrfField(form);
+    if (!ready) {
       return;
     }
 
@@ -412,9 +438,8 @@
     const form = document.getElementById('twoFactorForm');
     if (!form) return;
 
-    try {
-      await ensureFormCsrfField(form);
-    } catch (error) {
+    const ready = await ensureFormCsrfField(form);
+    if (!ready) {
       return;
     }
 

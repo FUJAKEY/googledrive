@@ -17,7 +17,7 @@
             <h1>Создание аккаунта</h1>
             <p>Получите доступ к корпоративному облаку с повышенной защитой.</p>
             <form id="registerForm" class="form-grid" method="post" action="/auth/register">
-              <input type="hidden" name="_csrf" data-csrf-field />
+              <input type="hidden" name="_csrf" value="__CSRF_TOKEN__" data-csrf-field />
               <label>
                 Имя
                 <input type="text" name="name" required autocomplete="name" />
