@@ -56,6 +56,11 @@ app.use(flash());
 app.use(attachUser);
 
 app.use((req, res, next) => {
+  res.locals.bodyClass = '';
+  next();
+});
+
+app.use((req, res, next) => {
   res.locals.successMessages = req.flash('success');
   res.locals.errorMessages = req.flash('error');
   res.locals.infoMessages = req.flash('info');
@@ -90,7 +95,11 @@ app.use('/', require('./routes/admin'));
 
 app.use((req, res) => {
   res.status(404);
-  return res.render('error', { title: 'Страница не найдена', message: 'Запрошенный ресурс отсутствует.' });
+  return res.render('error', {
+    title: 'Страница не найдена',
+    message: 'Запрошенный ресурс отсутствует.',
+    bodyClass: 'page-error'
+  });
 });
 
 app.use((err, req, res, next) => {
@@ -111,7 +120,11 @@ app.use((err, req, res, next) => {
 
   console.error('Unhandled error', err);
   res.status(500);
-  return res.render('error', { title: 'Ошибка', message: 'Произошла ошибка. Попробуйте позже.' });
+  return res.render('error', {
+    title: 'Ошибка',
+    message: 'Произошла ошибка. Попробуйте позже.',
+    bodyClass: 'page-error'
+  });
 });
 
 module.exports = app;
