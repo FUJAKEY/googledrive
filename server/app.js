@@ -20,6 +20,7 @@ const {
 } = require('./middleware/security');
 const { initStorage } = require('./services/storage');
 const logger = require('./utils/logger');
+const { safeRedirectBack } = require('./utils/navigation');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -100,7 +101,13 @@ app.use(attachSecurityHeaders);
 const csrfProtection = csrf();
 app.use(csrfProtection);
 app.use((req, res, next) => {
-  res.locals.csrfToken = req.csrfToken();
+  if (typeof res.locals.csrfToken === 'undefined') {
+    try {
+      res.locals.csrfToken = req.csrfToken();
+    } catch {
+      res.locals.csrfToken = '';
+    }
+  }
   res.locals.currentUser = req.session.user || null;
   res.locals.flash = req.flash();
   res.locals.appName = 'SecureDrive';
@@ -136,8 +143,15 @@ app.use((err, req, res, next) => {
       ip: req.ip,
       userId: req.session.user ? req.session.user.id : null
     });
-    req.flash('error', 'Проверка безопасности формы не пройдена. Попробуйте ещё раз.');
-    return res.status(403).redirect('back');
+    const message = 'Проверка безопасности формы не пройдена. Попробуйте ещё раз.';
+    if (req.xhr || req.accepts('json')) {
+      return res.status(403).json({
+        status: 'error',
+        message
+      });
+    }
+    req.flash('error', message);
+    return safeRedirectBack(req, res, req.originalUrl || '/');
   }
 
   logger.logError(err);

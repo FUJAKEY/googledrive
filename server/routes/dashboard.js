@@ -5,7 +5,14 @@ const storage = require('../services/storage');
 const audit = require('../services/audit');
 const logger = require('../utils/logger');
 
+const { safeRedirectBack } = require('../utils/navigation');
+
 const router = express.Router();
+
+function wantsJson(req) {
+  const accept = req.get('Accept') || '';
+  return req.xhr || accept.includes('application/json');
+}
 
 function formatBytes(bytes = 0) {
   if (!bytes) {
@@ -44,7 +51,7 @@ function translateLevel(level) {
 function assertValidPath(value) {
   try {
     storage.normalizePath(value);
-  } catch (error) {
+  } catch {
     throw new Error('Некорректный путь.');
   }
   return true;
@@ -110,8 +117,12 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      req.flash('error', errors.array()[0].msg);
-      return res.redirect('back');
+      const message = errors.array()[0].msg;
+      if (wantsJson(req)) {
+        return res.status(422).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, '/dashboard', 303);
     }
 
     try {
@@ -120,13 +131,21 @@ router.post(
       logger.logUserAction(req.session.user.id, 'create-folder', {
         folder: folder.fullPath
       });
-      req.flash('success', 'Папка успешно создана.');
+      const successMessage = 'Папка успешно создана.';
+      req.flash('success', successMessage);
       const redirectPath = parentPath === '/' ? '/dashboard' : `/dashboard?path=${encodeURIComponent(parentPath)}`;
+      if (wantsJson(req)) {
+        return res.json({ success: true, redirect: redirectPath, message: successMessage });
+      }
       return res.redirect(redirectPath);
     } catch (error) {
       logger.logError(error);
-      req.flash('error', error.message || 'Не удалось создать папку.');
-      return res.redirect('back');
+      const message = error.message || 'Не удалось создать папку.';
+      if (wantsJson(req)) {
+        return res.status(500).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, '/dashboard', 303);
     }
   }
 );

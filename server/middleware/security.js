@@ -1,5 +1,6 @@
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
+const { safeRedirectBack } = require('../utils/navigation');
 
 const windowMinutes = parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || '1', 10);
 const globalMax = parseInt(process.env.RATE_LIMIT_MAX || '120', 10);
@@ -18,7 +19,7 @@ const generalRateLimiter = rateLimit({
 
     if (req.accepts('html')) {
       req.flash('error', 'Превышен лимит запросов. Попробуйте повторить попытку через минуту.');
-      return res.status(429).redirect('back');
+      return safeRedirectBack(req, res, req.originalUrl || '/', 429);
     }
 
     return res.status(429).json({

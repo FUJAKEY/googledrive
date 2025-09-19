@@ -24,7 +24,6 @@ async function getRecentEvents(filter = () => true, limit = 50) {
           events.push(event);
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error('Ошибка разбора события аудита', error);
       }
       if (events.length >= limit) {

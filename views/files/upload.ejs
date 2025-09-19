@@ -8,7 +8,13 @@
   <a class="btn btn-outline" href="<%= backLink %>">Вернуться</a>
 </section>
 <section class="upload">
-  <form action="/files/upload" method="post" enctype="multipart/form-data" class="upload-form" id="upload-form">
+  <form
+    action="/files/upload?_csrf=<%= encodeURIComponent(csrfToken) %>"
+    method="post"
+    enctype="multipart/form-data"
+    class="upload-form"
+    id="upload-form"
+  >
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <input type="hidden" name="parentPath" value="<%= parentPath %>" />
     <div class="dropzone" data-dropzone>
@@ -17,6 +23,15 @@
       <input type="file" name="file" id="file" required />
     </div>
     <button type="submit" class="btn btn-primary">Начать загрузку</button>
+    <div class="upload-progress" data-upload-progress hidden>
+      <div class="upload-progress__bar">
+        <div class="upload-progress__bar-fill" data-upload-bar></div>
+      </div>
+      <div class="upload-progress__meta">
+        <span class="upload-progress__percent" data-upload-percent>0%</span>
+        <span class="upload-progress__status" data-upload-status>Ожидание запуска загрузки…</span>
+      </div>
+    </div>
   </form>
   <aside class="upload-aside">
     <h2>Советы по безопасности</h2>

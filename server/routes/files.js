@@ -7,7 +7,14 @@ const { body, param, validationResult } = require('express-validator');
 const storage = require('../services/storage');
 const logger = require('../utils/logger');
 
+const { safeRedirectBack } = require('../utils/navigation');
+
 const router = express.Router();
+
+function wantsJson(req) {
+  const accept = req.get('Accept') || '';
+  return req.xhr || accept.includes('application/json');
+}
 
 function formatBytes(bytes = 0) {
   if (!bytes) {
@@ -59,12 +66,12 @@ const validateParentPath = [
     .custom((value) => {
       try {
         storage.normalizePath(value);
-      } catch (error) {
+      } catch {
         throw new Error('Некорректный путь.');
       }
       return true;
     })
-];
+  ];
 
 router.get('/upload', async (req, res) => {
   const parentPath = req.query.path ? req.query.path : '/';
@@ -81,8 +88,12 @@ router.post(
   (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      req.flash('error', errors.array()[0].msg);
-      return res.status(422).redirect('back');
+      const message = errors.array()[0].msg;
+      if (wantsJson(req)) {
+        return res.status(422).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, req.originalUrl || '/files/upload', 303);
     }
     return next();
   },
@@ -91,16 +102,27 @@ router.post(
     upload.single('file')(req, res, (error) => {
       if (error) {
         logger.logError(error);
-        req.flash('error', error.message || 'Не удалось загрузить файл.');
-        return res.redirect('back');
+        let message = error.message || 'Не удалось загрузить файл.';
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          message = `Файл превышает допустимый размер ${uploadLimitMb} МБ.`;
+        }
+        if (wantsJson(req)) {
+          return res.status(400).json({ success: false, message });
+        }
+        req.flash('error', message);
+        return safeRedirectBack(req, res, req.originalUrl || '/files/upload', 303);
       }
       return next();
     });
   },
   async (req, res) => {
     if (!req.file) {
-      req.flash('error', 'Выберите файл для загрузки.');
-      return res.redirect('back');
+      const message = 'Выберите файл для загрузки.';
+      if (wantsJson(req)) {
+        return res.status(400).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, req.originalUrl || '/files/upload', 303);
     }
 
     try {
@@ -118,13 +140,21 @@ router.post(
         size: req.file.size
       });
 
-      req.flash('success', 'Файл успешно загружен.');
+      const successMessage = 'Файл успешно загружен.';
+      req.flash('success', successMessage);
       const redirectPath = parentPath === '/' ? '/dashboard' : `/dashboard?path=${encodeURIComponent(parentPath)}`;
+      if (wantsJson(req)) {
+        return res.json({ success: true, redirect: redirectPath, message: successMessage });
+      }
       return res.redirect(redirectPath);
     } catch (error) {
       logger.logError(error);
-      req.flash('error', error.message || 'Не удалось сохранить файл.');
-      return res.redirect('back');
+      const message = error.message || 'Не удалось сохранить файл.';
+      if (wantsJson(req)) {
+        return res.status(500).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, req.originalUrl || '/files/upload', 303);
     }
   }
 );
@@ -207,7 +237,7 @@ router.post(
       .custom((value) => {
         try {
           storage.normalizePath(value);
-        } catch (error) {
+        } catch {
           throw new Error('Некорректный путь.');
         }
         return true;
@@ -216,14 +246,21 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      req.flash('error', 'Некорректный запрос на удаление.');
-      return res.redirect('back');
+      const message = 'Некорректный запрос на удаление.';
+      if (wantsJson(req)) {
+        return res.status(400).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, '/dashboard', 303);
     }
 
     try {
       const item = await storage.getItemById(req.params.id);
       if (!item || item.ownerId !== req.session.user.id) {
         req.flash('error', 'Элемент не найден.');
+        if (wantsJson(req)) {
+          return res.status(404).json({ success: false, message: 'Элемент не найден.' });
+        }
         return res.redirect('/dashboard');
       }
 
@@ -239,14 +276,22 @@ router.post(
         });
       }
 
-      req.flash('success', 'Элемент удалён.');
+      const successMessage = 'Элемент удалён.';
+      req.flash('success', successMessage);
       const parentPath = req.body.parentPath ? storage.normalizePath(req.body.parentPath) : '/';
       const redirectPath = parentPath === '/' ? '/dashboard' : `/dashboard?path=${encodeURIComponent(parentPath)}`;
+      if (wantsJson(req)) {
+        return res.json({ success: true, redirect: redirectPath, message: successMessage });
+      }
       return res.redirect(redirectPath);
     } catch (error) {
       logger.logError(error);
-      req.flash('error', error.message || 'Не удалось удалить элемент.');
-      return res.redirect('back');
+      const message = error.message || 'Не удалось удалить элемент.';
+      if (wantsJson(req)) {
+        return res.status(500).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return safeRedirectBack(req, res, '/dashboard', 303);
     }
   }
 );
