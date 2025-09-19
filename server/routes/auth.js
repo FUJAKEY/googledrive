@@ -197,7 +197,7 @@ router.post('/logout', async (req, res, next) => {
   }
 
   const { user } = req.session;
-  req.session.destroy((error) => {
+  req.session.regenerate((error) => {
     if (error) {
       logger.logError(error);
       return next(error);
@@ -207,9 +207,10 @@ router.post('/logout', async (req, res, next) => {
       logger.logUserAction(user.id, 'logout', {});
     }
 
-    res.clearCookie('secureDrive.sid');
     req.flash('success', 'Вы успешно вышли из системы.');
-    return res.redirect('/auth/login');
+    return req.session.save(() => {
+      res.redirect('/auth/login');
+    });
   });
 });
 

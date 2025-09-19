@@ -1,32 +1,50 @@
 function flash() {
   return (req, _res, next) => {
-    if (!req.session) {
-      return next(new Error('Неинициализирована сессия для flash-сообщений.'));
-    }
+    const ensureFlashBag = () => {
+      if (!req.session) {
+        return null;
+      }
 
-    if (!req.session.flash) {
-      req.session.flash = {};
-    }
+      if (!req.session.flash || typeof req.session.flash !== 'object') {
+        req.session.flash = {};
+      }
+
+      return req.session.flash;
+    };
 
     req.flash = (type, message) => {
+      const flashBag = ensureFlashBag();
+
       if (!type) {
-        const current = req.session.flash;
+        if (!flashBag) {
+          return {};
+        }
+
+        const current = { ...flashBag };
         req.session.flash = {};
         return current;
       }
 
       if (message === undefined) {
-        const messages = req.session.flash[type] || [];
-        delete req.session.flash[type];
+        if (!flashBag) {
+          return [];
+        }
+
+        const messages = flashBag[type] ? [...flashBag[type]] : [];
+        delete flashBag[type];
         return messages;
       }
 
-      if (!req.session.flash[type]) {
-        req.session.flash[type] = [];
+      if (!flashBag) {
+        return [];
       }
 
-      req.session.flash[type].push(message);
-      return req.session.flash[type];
+      if (!Array.isArray(flashBag[type])) {
+        flashBag[type] = [];
+      }
+
+      flashBag[type].push(message);
+      return flashBag[type];
     };
 
     next();
