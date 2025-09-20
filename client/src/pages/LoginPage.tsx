@@ -9,13 +9,16 @@ import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { Cloud } from 'lucide-react';
 
-const loginSchema = z.object({
-  email: z.string().email('Введите корректный email'),
+const formSchema = z.object({
+  email: z
+    .string({ required_error: 'Введите email' })
+    .min(1, 'Введите email')
+    .email('Введите корректный email'),
   password: z.string().min(8, 'Минимум 8 символов'),
   name: z.string().optional()
 });
 
-type FormValues = z.infer<typeof loginSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -23,21 +26,44 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: { email: '', password: '', name: '' }
   });
 
+  const changeMode = (nextMode: 'login' | 'register') => {
+    setMode(nextMode);
+    clearErrors();
+  };
+
+  const ensureName = (value?: string) => {
+    const trimmed = value?.trim() ?? '';
+    if (!trimmed) {
+      setError('name', { type: 'manual', message: 'Введите имя' });
+      return null;
+    }
+    if (trimmed.length < 2) {
+      setError('name', { type: 'manual', message: 'Минимум 2 символа' });
+      return null;
+    }
+    return trimmed;
+  };
+
   const onSubmit = async (values: FormValues) => {
     try {
+      const email = values.email.trim();
       if (mode === 'login') {
-        await login({ email: values.email, password: values.password });
+        await login({ email, password: values.password });
       } else {
-        if (!values.name) {
-          throw new Error('Введите имя');
+        const normalizedName = ensureName(values.name);
+        if (!normalizedName) {
+          return;
         }
-        await registerUser({ email: values.email, password: values.password, name: values.name });
+        clearErrors('name');
+        await registerUser({ email, password: values.password, name: normalizedName });
       }
     } catch (error) {
       toast.error((error as Error).message);
@@ -117,11 +143,11 @@ export function LoginPage() {
           </form>
           <div className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
             {mode === 'login' ? (
-              <button className="font-semibold text-primary-600" onClick={() => setMode('register')}>
+              <button className="font-semibold text-primary-600" onClick={() => changeMode('register')}>
                 Нет аккаунта? Зарегистрируйтесь
               </button>
             ) : (
-              <button className="font-semibold text-primary-600" onClick={() => setMode('login')}>
+              <button className="font-semibold text-primary-600" onClick={() => changeMode('login')}>
                 Уже есть аккаунт? Войдите
               </button>
             )}
