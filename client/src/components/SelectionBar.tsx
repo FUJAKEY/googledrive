@@ -1,17 +1,19 @@
 import { Button } from './ui/Button';
-import { Download, Share2, Trash2, FolderUp, RotateCcw, Pencil } from 'lucide-react';
+import { Download, Share2, Trash2, FolderUp, RotateCcw, Pencil, Archive } from 'lucide-react';
 
 interface SelectionBarProps {
   count: number;
   onClear: () => void;
   onDelete: () => void;
   onDownload: () => void;
+  onDownloadZip: () => void;
   onShare: () => void;
   onMove: () => void;
   onRename: () => void;
   onRestore: () => void;
   isTrashView?: boolean;
   canDownload?: boolean;
+  canDownloadZip?: boolean;
   canShare?: boolean;
   canMove?: boolean;
   canRename?: boolean;
@@ -22,12 +24,14 @@ export function SelectionBar({
   onClear,
   onDelete,
   onDownload,
+  onDownloadZip,
   onShare,
   onMove,
   onRename,
   onRestore,
   isTrashView = false,
   canDownload = true,
+  canDownloadZip = true,
   canShare = true,
   canMove = true,
   canRename = true
@@ -40,9 +44,14 @@ export function SelectionBar({
       <div className="flex flex-wrap items-center gap-2">
         {!isTrashView && (
           <>
-            <Button variant="secondary" size="sm" onClick={onDownload} disabled={!canDownload}>
-              <Download className="h-4 w-4" /> Скачать
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={onDownload} disabled={!canDownload}>
+                <Download className="h-4 w-4" /> Скачать
+              </Button>
+              <Button variant="secondary" size="sm" onClick={onDownloadZip} disabled={!canDownloadZip}>
+                <Archive className="h-4 w-4" /> ZIP
+              </Button>
+            </div>
             <Button variant="secondary" size="sm" onClick={onShare} disabled={!canShare}>
               <Share2 className="h-4 w-4" /> Поделиться
             </Button>

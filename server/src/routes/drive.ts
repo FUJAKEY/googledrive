@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
+import archiver from 'archiver';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, DriveItem as DriveItemModel } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { config } from '../config.js';
 import { storage } from '../services/storage.js';
@@ -82,6 +83,73 @@ async function deleteRecursive(itemId: string) {
   await prisma.shareLink.deleteMany({ where: { itemId: itemId } });
   await prisma.activity.deleteMany({ where: { itemId: itemId } });
   await prisma.driveItem.delete({ where: { id: itemId } });
+}
+
+const archiveSchema = z.object({
+  ids: z.array(z.string()).min(1)
+});
+
+function sanitizeSegment(segment: string) {
+  const cleaned = segment.replace(/[\\/:*?"<>|]/g, '-').trim();
+  return cleaned.length > 0 ? cleaned : 'untitled';
+}
+
+function sanitizeArchivePath(pathName: string) {
+  return pathName
+    .split('/')
+    .map((segment) => sanitizeSegment(segment))
+    .join('/');
+}
+
+function ensureUniquePath(pathName: string, usedPaths: Set<string>) {
+  let attempt = pathName;
+  const isFolder = attempt.endsWith('/');
+  const extensionIndex = !isFolder ? attempt.lastIndexOf('.') : -1;
+  const baseName =
+    extensionIndex > 0 ? attempt.slice(0, extensionIndex) : isFolder ? attempt.slice(0, -1) : attempt;
+  const extension = extensionIndex > 0 ? attempt.slice(extensionIndex) : isFolder ? '/' : '';
+  let counter = 1;
+  while (usedPaths.has(attempt)) {
+    const suffix = ` (${counter})`;
+    attempt = isFolder
+      ? `${baseName}${suffix}/`
+      : extensionIndex > 0
+      ? `${baseName}${suffix}${extension}`
+      : `${baseName}${suffix}`;
+    counter += 1;
+  }
+  usedPaths.add(attempt);
+  return attempt;
+}
+
+async function appendItemToArchive(
+  archive: archiver.Archiver,
+  item: DriveItemModel,
+  userId: string,
+  basePath: string,
+  usedPaths: Set<string>
+) {
+  const safePath = sanitizeArchivePath(basePath);
+  if (item.type === DRIVE_ITEM_TYPES.FILE) {
+    if (!item.storageKey) {
+      return;
+    }
+    const entryPath = ensureUniquePath(safePath, usedPaths);
+    const stream = await storage.getFileStream(item.storageKey);
+    archive.append(stream, { name: entryPath });
+    return;
+  }
+
+  const folderEntry = ensureUniquePath(`${safePath}/`, usedPaths);
+  archive.append('', { name: folderEntry });
+  const normalizedFolderPath = folderEntry.slice(0, -1);
+  const children = await prisma.driveItem.findMany({
+    where: { parentId: item.id, ownerId: userId, isTrashed: false },
+    orderBy: { name: 'asc' }
+  });
+  for (const child of children) {
+    await appendItemToArchive(archive, child, userId, `${normalizedFolderPath}/${child.name}`, usedPaths);
+  }
 }
 
 export const driveRouter = Router();
@@ -220,6 +288,49 @@ driveRouter.post('/file', upload.array('files'), async (req, res, next) => {
     }
 
     return res.status(201).json({ items: createdItems.map(toDriveItemResponse) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+driveRouter.post('/archive', async (req, res, next) => {
+  try {
+    const { ids } = archiveSchema.parse(req.body);
+    const user = req.user!;
+
+    const items = await prisma.driveItem.findMany({
+      where: {
+        ownerId: user.id,
+        id: { in: ids },
+        isTrashed: false
+      }
+    });
+
+    if (!items.length) {
+      return res.status(404).json({ message: 'Элементы не найдены' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    res.setHeader('Content-Disposition', `attachment; filename="CloudDrive-${timestamp}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (error) => {
+      next(error);
+    });
+    archive.pipe(res);
+
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+    const orderedItems = ids
+      .map((id) => itemsById.get(id))
+      .filter((entry): entry is DriveItemModel => Boolean(entry));
+
+    const usedPaths = new Set<string>();
+    for (const item of orderedItems) {
+      await appendItemToArchive(archive, item, user.id, item.name, usedPaths);
+    }
+
+    await archive.finalize();
   } catch (error) {
     next(error);
   }

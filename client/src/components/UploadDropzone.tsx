@@ -13,7 +13,10 @@ export function UploadDropzone({ onFiles }: { onFiles: (files: File[]) => void }
     [onFiles]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, noClick: true });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    multiple: true
+  });
 
   return (
     <div

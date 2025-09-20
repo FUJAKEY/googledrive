@@ -3,9 +3,9 @@ import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { ACTIVITY_TYPES, DRIVE_ITEM_TYPES, SHARE_PERMISSIONS } from '../utils/constants.js';
 import { prisma } from '../lib/prisma.js';
-import { config } from '../config.js';
 import { storage } from '../services/storage.js';
 import { toDriveItemResponse } from '../utils/drive.js';
+import { getRequestOrigin } from '../utils/url.js';
 
 const shareSchema = z.object({
   permission: z.enum([SHARE_PERMISSIONS.VIEW, SHARE_PERMISSIONS.EDIT]).default(SHARE_PERMISSIONS.VIEW),
@@ -17,6 +17,7 @@ export const shareApiRouter = Router();
 shareApiRouter.get('/', async (req, res, next) => {
   try {
     const user = req.user!;
+    const origin = getRequestOrigin(req);
     const links = await prisma.shareLink.findMany({
       where: { ownerId: user.id },
       include: {
@@ -28,7 +29,7 @@ shareApiRouter.get('/', async (req, res, next) => {
       links: links.map((link) => ({
         id: link.id,
         token: link.token,
-        url: `${config.baseUrl}/s/${link.token}`,
+        url: `${origin}/s/${link.token}`,
         permission: link.permission,
         expiresAt: link.expiresAt,
         createdAt: link.createdAt,
@@ -45,6 +46,7 @@ shareApiRouter.post('/:id', async (req, res, next) => {
     const parsed = shareSchema.parse(req.body);
     const { id } = req.params;
     const user = req.user!;
+    const origin = getRequestOrigin(req);
 
     const item = await prisma.driveItem.findFirst({ where: { id, ownerId: user.id } });
     if (!item) {
@@ -78,7 +80,7 @@ shareApiRouter.post('/:id', async (req, res, next) => {
       link: {
         id: share.id,
         token: share.token,
-        url: `${config.baseUrl}/s/${share.token}`,
+        url: `${origin}/s/${share.token}`,
         permission: share.permission,
         expiresAt: share.expiresAt
       }
@@ -118,6 +120,7 @@ export const shareRouter = Router();
 shareRouter.get('/:token', async (req, res, next) => {
   try {
     const { token } = req.params;
+    const origin = getRequestOrigin(req);
     const link = await prisma.shareLink.findUnique({
       where: { token },
       include: { item: true }
@@ -147,9 +150,7 @@ shareRouter.get('/:token', async (req, res, next) => {
       ownerId: link.ownerId,
       children,
       downloadUrl:
-        link.item.type === DRIVE_ITEM_TYPES.FILE
-          ? `${config.baseUrl}/s/${link.token}/download`
-          : undefined
+        link.item.type === DRIVE_ITEM_TYPES.FILE ? `${origin}/s/${link.token}/download` : undefined
     });
   } catch (error) {
     next(error);

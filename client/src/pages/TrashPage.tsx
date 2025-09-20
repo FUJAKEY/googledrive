@@ -160,11 +160,17 @@ export function TrashPage() {
               onClear={resetSelection}
               onDelete={() => void handleDelete()}
               onDownload={() => undefined}
+              onDownloadZip={() => undefined}
               onShare={() => undefined}
               onMove={() => undefined}
               onRename={() => undefined}
               onRestore={() => void handleRestore()}
               isTrashView
+              canDownload={false}
+              canDownloadZip={false}
+              canShare={false}
+              canMove={false}
+              canRename={false}
             />
           )}
           <div className="mt-6">{renderContent()}</div>

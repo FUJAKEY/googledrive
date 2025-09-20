@@ -15,9 +15,11 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { PreviewModal, type PreviewData } from '../components/PreviewModal';
+import { MobileQuickActions } from '../components/MobileQuickActions';
+import { UploadProgressList, type UploadItemState } from '../components/UploadProgressList';
 import type { DriveItem, DriveListResponse, ShareLink, SharePermission } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 type SortField = 'name' | 'updatedAt' | 'createdAt' | 'size';
 
@@ -25,7 +27,7 @@ type ViewMode = 'grid' | 'list';
 
 export function DrivePage() {
   const queryClient = useQueryClient();
-  const { authorizedFetch, accessToken } = useAuth();
+  const { authorizedFetch, accessToken, refresh } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -46,7 +48,44 @@ export function DrivePage() {
   const [moveBreadcrumbs, setMoveBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
   const [previewItem, setPreviewItem] = useState<DriveItem | null>(null);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
-  const [isUploading, setUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<UploadItemState[]>([]);
+
+  const isUploading = uploadQueue.some((item) => item.status === 'uploading' || item.status === 'pending');
+
+  const triggerDesktopUpload = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    const element = document.getElementById('upload-hidden') as HTMLInputElement | null;
+    element?.click();
+  }, []);
+
+  const triggerMobileUpload = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    const element = document.getElementById('upload-hidden-mobile') as HTMLInputElement | null;
+    element?.click();
+  }, []);
+
+  const registerUploadItem = useCallback((file: File) => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const entry: UploadItemState = {
+      id,
+      name: file.name,
+      progress: 0,
+      status: 'pending'
+    };
+    setUploadQueue((prev) => [...prev.filter((item) => item.status !== 'success'), entry]);
+    return id;
+  }, []);
+
+  const updateUploadItem = useCallback((id: string, patch: Partial<UploadItemState>) => {
+    setUploadQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }, []);
+
+  const scheduleUploadCleanup = useCallback((id: string) => {
+    if (typeof window === 'undefined') return;
+    window.setTimeout(() => {
+      setUploadQueue((prev) => prev.filter((item) => !(item.id === id && item.status === 'success')));
+    }, 2500);
+  }, []);
 
   const { data, isLoading } = useQuery<DriveListResponse>({
     queryKey: ['drive', { parentId: currentFolderId, search, sortField, sortOrder }],
@@ -156,34 +195,99 @@ export function DrivePage() {
     toast.success('Папка создана');
   };
 
-  const handleUpload = async (files: File[]) => {
-    if (!files.length || !accessToken) return;
-    setUploading(true);
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-    if (currentFolderId) {
-      formData.append('parentId', currentFolderId);
-    }
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/drive/file`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        },
-        credentials: 'include',
-        body: formData
-      });
-      if (!response.ok) {
-        throw new Error('upload_failed');
+  const handleUpload = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return;
+      let hadErrors = false;
+      const parentId = currentFolderId;
+      const endpoint = `${API_BASE_URL}/api/drive/file`;
+
+      const uploadSingle = async (file: File) => {
+        const uploadId = registerUploadItem(file);
+        updateUploadItem(uploadId, { status: 'uploading', progress: 1 });
+
+        const buildFormData = () => {
+          const formData = new FormData();
+          formData.append('files', file);
+          if (parentId) {
+            formData.append('parentId', parentId);
+          }
+          return formData;
+        };
+
+        const attempt = (token?: string | null) =>
+          new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', endpoint);
+            xhr.withCredentials = true;
+            if (token) {
+              xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const progress = Math.max(5, Math.round((event.loaded / event.total) * 100));
+                updateUploadItem(uploadId, { status: 'uploading', progress });
+              } else {
+                updateUploadItem(uploadId, { status: 'uploading' });
+              }
+            };
+            xhr.onerror = () => {
+              updateUploadItem(uploadId, { status: 'error', progress: 0 });
+              reject(new Error('network'));
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                updateUploadItem(uploadId, { status: 'success', progress: 100 });
+                scheduleUploadCleanup(uploadId);
+                resolve();
+              } else if (xhr.status === 401) {
+                reject(new Error('unauthorized'));
+              } else {
+                updateUploadItem(uploadId, { status: 'error' });
+                reject(new Error('failed'));
+              }
+            };
+            xhr.send(buildFormData());
+          });
+
+        const initialToken = accessToken;
+        try {
+          await attempt(initialToken);
+        } catch (error) {
+          if ((error as Error).message === 'unauthorized') {
+            try {
+              await refresh();
+              const latestToken = window.localStorage.getItem('clouddrive.accessToken');
+              await attempt(latestToken);
+            } catch (retryError) {
+              hadErrors = true;
+              updateUploadItem(uploadId, { status: 'error' });
+              throw retryError;
+            }
+          } else {
+            hadErrors = true;
+            throw error;
+          }
+        }
+      };
+
+      for (const file of files) {
+        try {
+          await uploadSingle(file);
+        } catch {
+          // continue uploading оставшиеся файлы
+        }
       }
+
       refreshDrive();
-      toast.success('Загрузка завершена');
-    } catch {
-      toast.error('Не удалось загрузить файлы');
-    } finally {
-      setUploading(false);
-    }
-  };
+      if (hadErrors) {
+        toast.error('Некоторые файлы не удалось загрузить');
+      } else {
+        toast.success('Все файлы загружены');
+      }
+    },
+    [accessToken, currentFolderId, refresh, refreshDrive, registerUploadItem, scheduleUploadCleanup, updateUploadItem]
+  );
 
   const handleDelete = async (permanent = false) => {
     await Promise.all(
@@ -222,6 +326,58 @@ export function DrivePage() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleDownloadZip = async () => {
+    if (!selectedItems.length) return;
+    try {
+      let token = accessToken ?? window.localStorage.getItem('clouddrive.accessToken');
+      if (!token) {
+        await refresh();
+        token = window.localStorage.getItem('clouddrive.accessToken');
+      }
+      if (!token) {
+        toast.error('Авторизуйтесь, чтобы скачать архив');
+        return;
+      }
+
+      const execute = async (authToken: string) =>
+        fetch(`${API_BASE_URL}/api/drive/archive`, {
+          method: 'POST',
+          headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ ids: selectedItems.map((item) => item.id) })
+        });
+
+      let response = await execute(token);
+      if (response.status === 401) {
+        await refresh();
+        const retryToken = window.localStorage.getItem('clouddrive.accessToken');
+        if (retryToken) {
+          response = await execute(retryToken);
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error('archive_failed');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+      link.href = url;
+      link.download = `CloudDrive-${timestamp}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('ZIP-архив сформирован');
+    } catch {
+      toast.error('Не удалось подготовить архив');
     }
   };
 
@@ -298,7 +454,7 @@ export function DrivePage() {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-36 w-full rounded-2xl" />
           ))}
@@ -319,7 +475,7 @@ export function DrivePage() {
 
     if (viewMode === 'grid') {
       return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {currentItems.map((item) => (
             <FileCard
               key={item.id}
@@ -360,7 +516,7 @@ export function DrivePage() {
             <Button variant="secondary" size="sm" onClick={() => setIsCreateFolderOpen(true)}>
               <Plus className="h-4 w-4" /> Новая папка
             </Button>
-            <Button variant="primary" size="sm" onClick={() => document.getElementById('upload-hidden')?.click()} disabled={isUploading}>
+            <Button variant="primary" size="sm" onClick={triggerDesktopUpload} disabled={isUploading}>
               <Upload className="h-4 w-4" /> {isUploading ? 'Загрузка...' : 'Загрузить'}
             </Button>
             <input
@@ -433,7 +589,7 @@ export function DrivePage() {
             variant="primary"
             size="sm"
             className="flex-1"
-            onClick={() => document.getElementById('upload-hidden-mobile')?.click()}
+            onClick={triggerMobileUpload}
             disabled={isUploading}
           >
             <Upload className="h-4 w-4" /> {isUploading ? 'Загрузка...' : 'Загрузить'}
@@ -452,26 +608,36 @@ export function DrivePage() {
           />
         </div>
         <UploadDropzone onFiles={(files) => void handleUpload(files)} />
+        <UploadProgressList uploads={uploadQueue} />
           {selectedItems.length > 0 && (
-            <SelectionBar
-              count={selectedItems.length}
-              onClear={resetSelection}
-              onDelete={() => void handleDelete(selectedIsInTrash)}
-              onDownload={() => void handleDownload()}
-              onShare={() => setIsShareOpen(true)}
-              onMove={() => void openMoveModal(currentFolderId)}
-              onRename={() => setIsRenameOpen(true)}
-              onRestore={() => void handleRestore()}
-              isTrashView={selectedIsInTrash}
-              canDownload={selectedItems.some((item) => item.type === 'FILE')}
-              canShare={selectedItems.length === 1}
-              canMove={selectedItems.length > 0}
-              canRename={selectedItems.length === 1}
-            />
+              <SelectionBar
+                count={selectedItems.length}
+                onClear={resetSelection}
+                onDelete={() => void handleDelete(selectedIsInTrash)}
+                onDownload={() => void handleDownload()}
+                onDownloadZip={() => void handleDownloadZip()}
+                onShare={() => setIsShareOpen(true)}
+                onMove={() => void openMoveModal(currentFolderId)}
+                onRename={() => setIsRenameOpen(true)}
+                onRestore={() => void handleRestore()}
+                isTrashView={selectedIsInTrash}
+                canDownload={selectedItems.some((item) => item.type === 'FILE')}
+                canDownloadZip={
+                  selectedItems.length > 1 || selectedItems.some((item) => item.type === 'FOLDER')
+                }
+                canShare={selectedItems.length === 1}
+                canMove={selectedItems.length > 0}
+                canRename={selectedItems.length === 1}
+              />
           )}
           {renderContent()}
         </div>
       </div>
+      <MobileQuickActions
+        onCreateFolder={() => setIsCreateFolderOpen(true)}
+        onUploadClick={triggerMobileUpload}
+        isUploading={isUploading}
+      />
 
       <Modal
         isOpen={isCreateFolderOpen}

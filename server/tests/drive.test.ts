@@ -71,9 +71,18 @@ describe('Файловый менеджер', () => {
 
     expect(shareResponse.status).toBe(201);
     const token = shareResponse.body.link.token as string;
+    expect(shareResponse.body.link.url).toMatch(/^http:\/\/127\.0\.0\.1/);
 
     const publicResponse = await request(app).get(`/s/${token}`);
     expect(publicResponse.status).toBe(200);
     expect(publicResponse.body.item.name).toBe('note.txt');
+
+    const archiveResponse = await request(app)
+      .post('/api/drive/archive')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ ids: [fileId] });
+
+    expect(archiveResponse.status).toBe(200);
+    expect(archiveResponse.headers['content-type']).toBe('application/zip');
   });
 });

@@ -11,7 +11,7 @@ const items = [
 export function MobileNav() {
   const { pathname } = useLocation();
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-200 bg-white/90 px-4 py-3 pb-[max(env(safe-area-inset-bottom),12px)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 lg:hidden">
       {items.map((item) => (
         <Link
           key={item.to}
