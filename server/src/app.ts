@@ -86,9 +86,10 @@ export function createApp() {
     });
   }
 
-  if (!builtIndexPath || !fs.existsSync(builtIndexPath)) {
-    app.get('/', (_req, res) => {
-      res.type('html').send(`<!DOCTYPE html>
+  const sendLandingPage = (res: express.Response) => {
+    res
+      .type('html')
+      .send(`<!DOCTYPE html>
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
@@ -160,6 +161,19 @@ export function createApp() {
     </section>
   </body>
 </html>`);
+  };
+
+  if (!builtIndexPath || !fs.existsSync(builtIndexPath)) {
+    app.get('*', (req, res, next) => {
+      if (req.method !== 'GET') {
+        return next();
+      }
+
+      if (req.path.startsWith('/api') || req.path.startsWith('/s')) {
+        return next();
+      }
+
+      return sendLandingPage(res);
     });
   }
 
