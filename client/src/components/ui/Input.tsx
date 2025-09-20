@@ -1,9 +1,17 @@
+import { forwardRef } from 'react';
 import type { InputHTMLAttributes } from 'react';
 import clsx from 'clsx';
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+type InputProps = InputHTMLAttributes<HTMLInputElement>;
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, type = 'text', ...props },
+  ref
+) {
   return (
     <input
+      ref={ref}
+      type={type}
       className={clsx(
         'h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm transition focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-primary-500',
         className
@@ -11,4 +19,6 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
       {...props}
     />
   );
-}
+});
+
+Input.displayName = 'Input';
