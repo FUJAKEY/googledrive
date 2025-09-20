@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { apiRouter } from './routes/index.js';
@@ -43,23 +44,31 @@ export function createApp() {
   app.use('/api', apiRouter);
   app.use('/s', shareRouter);
 
-  const publicDir = path.join(process.cwd(), 'public');
-  const builtIndexPath = path.join(publicDir, 'index.html');
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
-  if (fs.existsSync(publicDir)) {
+  const publicDirCandidates = [
+    path.resolve(process.cwd(), 'public'),
+    path.resolve(process.cwd(), 'server', 'public'),
+    path.resolve(currentDir, '../public')
+  ];
+
+  const publicDir = publicDirCandidates.find((dir) => fs.existsSync(dir));
+  const builtIndexPath = publicDir ? path.join(publicDir, 'index.html') : undefined;
+
+  if (publicDir) {
     app.use(express.static(publicDir));
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/s')) {
         return next();
       }
-      if (fs.existsSync(builtIndexPath)) {
+      if (builtIndexPath && fs.existsSync(builtIndexPath)) {
         return res.sendFile(builtIndexPath);
       }
       return next();
     });
   }
 
-  if (!fs.existsSync(builtIndexPath)) {
+  if (!builtIndexPath || !fs.existsSync(builtIndexPath)) {
     app.get('/', (_req, res) => {
       res.type('html').send(`<!DOCTYPE html>
 <html lang="ru">
