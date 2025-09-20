@@ -16,6 +16,7 @@ client/vite.config.d.ts
 # Env
 .env
 .env.*
+!.env.example
 
 # Data storage
 data/

@@ -13,6 +13,8 @@ import { shareRouter } from './routes/share.js';
 export function createApp() {
   const app = express();
 
+  app.set('trust proxy', config.trustProxy);
+
   const origins = config.corsOrigin.split(',').map((origin) => origin.trim());
 
   app.use(helmet());
@@ -22,7 +24,14 @@ export function createApp() {
       credentials: true
     })
   );
-  app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: config.rateLimitMax }));
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: config.rateLimitMax,
+      standardHeaders: true,
+      legacyHeaders: false
+    })
+  );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());

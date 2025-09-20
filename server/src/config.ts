@@ -3,6 +3,23 @@ import 'dotenv/config';
 
 const port = Number(process.env.PORT ?? 8000);
 
+const trustProxyEnv = process.env.TRUST_PROXY;
+let trustProxy: boolean | number | string =
+  process.env.NODE_ENV === 'production' ? 1 : false;
+
+if (trustProxyEnv !== undefined) {
+  const normalized = trustProxyEnv.trim().toLowerCase();
+  if (normalized === 'true') {
+    trustProxy = true;
+  } else if (normalized === 'false') {
+    trustProxy = false;
+  } else if (/^\d+$/.test(normalized)) {
+    trustProxy = Number(normalized);
+  } else {
+    trustProxy = trustProxyEnv;
+  }
+}
+
 export const config = {
   env: process.env.NODE_ENV ?? 'development',
   port,
@@ -14,7 +31,8 @@ export const config = {
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB ?? 25),
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX ?? 200),
   storageRoot: path.resolve(process.cwd(), process.env.STORAGE_ROOT ?? '../data'),
-  corsOrigin: process.env.CORS_ORIGIN ?? '*'
+  corsOrigin: process.env.CORS_ORIGIN ?? '*',
+  trustProxy
 };
 
 export const constants = {
