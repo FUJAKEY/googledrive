@@ -70,7 +70,9 @@ export function DrivePage() {
       id,
       name: file.name,
       progress: 0,
-      status: 'pending'
+      status: 'pending',
+      totalBytes: file.size,
+      loadedBytes: 0
     };
     setUploadQueue((prev) => [...prev.filter((item) => item.status !== 'success'), entry]);
     return id;
@@ -135,6 +137,10 @@ export function DrivePage() {
         const blob = await fetchFile(item.id);
         const url = URL.createObjectURL(blob);
         setPreviewData({ type: 'image', url });
+      } else if (item.mimeType?.includes('video')) {
+        const blob = await fetchFile(item.id);
+        const url = URL.createObjectURL(blob);
+        setPreviewData({ type: 'video', url });
       } else if (item.mimeType?.includes('pdf')) {
         const blob = await fetchFile(item.id);
         const url = URL.createObjectURL(blob);
@@ -226,7 +232,12 @@ export function DrivePage() {
             xhr.upload.onprogress = (event) => {
               if (event.lengthComputable) {
                 const progress = Math.max(5, Math.round((event.loaded / event.total) * 100));
-                updateUploadItem(uploadId, { status: 'uploading', progress });
+                updateUploadItem(uploadId, {
+                  status: 'uploading',
+                  progress,
+                  loadedBytes: event.loaded,
+                  totalBytes: event.total || file.size || undefined
+                });
               } else {
                 updateUploadItem(uploadId, { status: 'uploading' });
               }
@@ -237,7 +248,12 @@ export function DrivePage() {
             };
             xhr.onload = () => {
               if (xhr.status >= 200 && xhr.status < 300) {
-                updateUploadItem(uploadId, { status: 'success', progress: 100 });
+                updateUploadItem(uploadId, {
+                  status: 'success',
+                  progress: 100,
+                  loadedBytes: file.size,
+                  totalBytes: file.size
+                });
                 scheduleUploadCleanup(uploadId);
                 resolve();
               } else if (xhr.status === 401) {

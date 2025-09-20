@@ -22,6 +22,7 @@ function buildUrl(path: string) {
 
 type PreviewState =
   | { type: 'image'; url: string }
+  | { type: 'video'; url: string }
   | { type: 'pdf'; url: string }
   | { type: 'text'; content: string }
   | { type: 'unknown' }
@@ -106,6 +107,11 @@ export function ShareViewerPage() {
           const url = URL.createObjectURL(blob);
           revokeUrl = url;
           setPreview({ type: 'image', url });
+        } else if (mime.includes('video')) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          revokeUrl = url;
+          setPreview({ type: 'video', url });
         } else if (mime.includes('pdf')) {
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
@@ -280,6 +286,13 @@ export function ShareViewerPage() {
                         src={preview.url}
                         alt={data.item.name}
                         className="mx-auto max-h-96 w-full rounded-xl object-contain shadow-lg"
+                      />
+                    ) : preview?.type === 'video' ? (
+                      <video
+                        src={preview.url}
+                        controls
+                        className="mx-auto max-h-[28rem] w-full rounded-xl bg-black shadow-lg"
+                        preload="metadata"
                       />
                     ) : preview?.type === 'pdf' ? (
                       <iframe

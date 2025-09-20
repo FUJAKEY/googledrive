@@ -2,7 +2,7 @@ import type { DriveItem } from '../types';
 import { Modal } from './ui/Modal';
 
 export interface PreviewData {
-  type: 'image' | 'text' | 'pdf' | 'unknown';
+  type: 'image' | 'video' | 'text' | 'pdf' | 'unknown';
   url?: string;
   content?: string;
 }
@@ -20,11 +20,19 @@ export function PreviewModal({ item, data, isOpen, onClose }: PreviewModalProps)
       isOpen={isOpen}
       onClose={onClose}
       title={item?.name}
-      size={data?.type === 'pdf' ? 'lg' : 'md'}
+      size={data?.type === 'pdf' || data?.type === 'video' ? 'lg' : 'md'}
       description={item?.mimeType ?? ''}
     >
       {data?.type === 'image' && data.url ? (
         <img src={data.url} alt={item?.name} className="max-h-[60vh] w-full rounded-xl object-contain" />
+      ) : null}
+      {data?.type === 'video' && data.url ? (
+        <video
+          src={data.url}
+          controls
+          className="max-h-[70vh] w-full rounded-xl bg-black"
+          preload="metadata"
+        />
       ) : null}
       {data?.type === 'text' && data.content ? (
         <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-xl bg-slate-100 p-4 text-sm text-slate-700 dark:bg-slate-900 dark:text-slate-200">
