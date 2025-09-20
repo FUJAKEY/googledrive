@@ -41,7 +41,7 @@ CloudDrive — полнофункциональный клон Google Drive с �
 |------------|------------|------------------------|
 | `PORT` | Порт HTTP-сервера | `8000` |
 | `BASE_URL` | Базовый URL сервера | `http://localhost:8000` |
-| `DATABASE_URL` | Строка подключения Prisma (SQLite) | `file:./dev.db` |
+| `DATABASE_URL` | Строка подключения Prisma (SQLite) | `file:./dev.db` (опционально, по умолчанию будет создана `file:/data/clouddrive.db`) |
 | `JWT_SECRET` | Секрет для access-токена | `super-secret-access-token` |
 | `JWT_REFRESH_SECRET` | Секрет для refresh-токена | `super-secret-refresh-token` |
 | `ACCESS_TOKEN_TTL_MINUTES` | Время жизни access-токена | `15` |
