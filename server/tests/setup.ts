@@ -13,6 +13,7 @@ if (!process.env.STORAGE_ROOT) {
 }
 
 process.env.BASE_URL = process.env.BASE_URL ?? 'http://localhost:8000';
+process.env.SKIP_MIGRATIONS = 'true';
 
 import { beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'node:fs/promises';
