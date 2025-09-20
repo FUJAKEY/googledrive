@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DrivePage } from './pages/DrivePage';
 import { TrashPage } from './pages/TrashPage';
 import { SharedPage } from './pages/SharedPage';
+import { ShareViewerPage } from './pages/ShareViewerPage';
 import { Skeleton } from './components/ui/Skeleton';
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -26,6 +27,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/s/:token" element={<ShareViewerPage />} />
       <Route
         path="/"
         element={

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import archiver from 'archiver';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { ACTIVITY_TYPES, DRIVE_ITEM_TYPES, SHARE_PERMISSIONS } from '../utils/constants.js';
@@ -6,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { storage } from '../services/storage.js';
 import { toDriveItemResponse } from '../utils/drive.js';
 import { getRequestOrigin } from '../utils/url.js';
+import { appendItemToArchive, sanitizeSegment } from '../utils/archive.js';
 
 const shareSchema = z.object({
   permission: z.enum([SHARE_PERMISSIONS.VIEW, SHARE_PERMISSIONS.EDIT]).default(SHARE_PERMISSIONS.VIEW),
@@ -150,7 +152,9 @@ shareRouter.get('/:token', async (req, res, next) => {
       ownerId: link.ownerId,
       children,
       downloadUrl:
-        link.item.type === DRIVE_ITEM_TYPES.FILE ? `${origin}/s/${link.token}/download` : undefined
+        link.item.type === DRIVE_ITEM_TYPES.FILE ? `${origin}/s/${link.token}/download` : undefined,
+      archiveUrl:
+        link.item.type === DRIVE_ITEM_TYPES.FOLDER ? `${origin}/s/${link.token}/archive` : undefined
     });
   } catch (error) {
     next(error);
@@ -176,6 +180,45 @@ shareRouter.get('/:token/download', async (req, res, next) => {
     res.setHeader('Content-Type', link.item.mimeType ?? 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(link.item.name)}"`);
     stream.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+shareRouter.get('/:token/archive', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const link = await prisma.shareLink.findUnique({
+      where: { token },
+      include: { item: true }
+    });
+
+    if (!link || link.item.type !== DRIVE_ITEM_TYPES.FOLDER) {
+      return res.status(404).json({ message: 'Папка не найдена' });
+    }
+
+    if (link.expiresAt && link.expiresAt < new Date()) {
+      await prisma.shareLink.delete({ where: { id: link.id } });
+      return res.status(410).json({ message: 'Ссылка истекла' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    const folderName = sanitizeSegment(link.item.name);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(folderName || 'archive')}.zip"`
+    );
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (error) => {
+      next(error);
+    });
+
+    archive.pipe(res);
+
+    const usedPaths = new Set<string>();
+    await appendItemToArchive(archive, link.item, link.ownerId, link.item.name, usedPaths);
+    await archive.finalize();
   } catch (error) {
     next(error);
   }

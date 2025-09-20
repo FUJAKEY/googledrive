@@ -41,9 +41,6 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
 
-  app.use('/api', apiRouter);
-  app.use('/s', shareRouter);
-
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
   const publicDirCandidates = [
@@ -54,6 +51,27 @@ export function createApp() {
 
   const publicDir = publicDirCandidates.find((dir) => fs.existsSync(dir));
   const builtIndexPath = publicDir ? path.join(publicDir, 'index.html') : undefined;
+
+  app.use('/api', apiRouter);
+  app.use('/s', (req, res, next) => {
+    const acceptHeader = req.get('accept') ?? '';
+    const segments = req.path.split('/').filter(Boolean);
+    const isPublicView = segments.length === 1;
+    const targetsArchiveOrDownload = segments[1] === 'download' || segments[1] === 'archive';
+    const hasIndex = builtIndexPath && fs.existsSync(builtIndexPath);
+
+    if (
+      req.method === 'GET' &&
+      isPublicView &&
+      !targetsArchiveOrDownload &&
+      hasIndex &&
+      acceptHeader.includes('text/html')
+    ) {
+      return res.sendFile(builtIndexPath);
+    }
+
+    return shareRouter(req, res, next);
+  });
 
   if (publicDir) {
     app.use(express.static(publicDir));

@@ -26,6 +26,16 @@ export interface DriveItem {
   shareLinks?: ShareLink[];
 }
 
+export interface ShareAccessResponse {
+  item: DriveItem;
+  permission: SharePermission;
+  expiresAt?: string | null;
+  ownerId: string;
+  children?: DriveItem[];
+  downloadUrl?: string;
+  archiveUrl?: string;
+}
+
 export interface BreadcrumbItem {
   id: string;
   name: string;
