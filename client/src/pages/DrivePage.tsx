@@ -17,6 +17,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { PreviewModal, type PreviewData } from '../components/PreviewModal';
 import { MobileQuickActions } from '../components/MobileQuickActions';
 import { UploadProgressList, type UploadItemState } from '../components/UploadProgressList';
+import { ApiKeysModal } from '../components/ApiKeysModal';
 import type { DriveItem, DriveListResponse, ShareLink, SharePermission } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
@@ -49,6 +50,7 @@ export function DrivePage() {
   const [previewItem, setPreviewItem] = useState<DriveItem | null>(null);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadItemState[]>([]);
+  const [isApiKeysOpen, setIsApiKeysOpen] = useState(false);
 
   const isUploading = uploadQueue.some((item) => item.status === 'uploading' || item.status === 'pending');
 
@@ -527,6 +529,7 @@ export function DrivePage() {
         onSearchChange={setSearch}
         onToggleTheme={toggleTheme}
         theme={theme}
+        onOpenApiKeys={() => setIsApiKeysOpen(true)}
         actions={
           <div className="hidden items-center gap-2 lg:flex">
             <Button variant="secondary" size="sm" onClick={() => setIsCreateFolderOpen(true)}>
@@ -654,6 +657,8 @@ export function DrivePage() {
         onUploadClick={triggerMobileUpload}
         isUploading={isUploading}
       />
+
+      <ApiKeysModal isOpen={isApiKeysOpen} onClose={() => setIsApiKeysOpen(false)} />
 
       <Modal
         isOpen={isCreateFolderOpen}

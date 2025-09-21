@@ -18,6 +18,7 @@ model User {
   items      DriveItem[]
   activities Activity[]  @relation("UserActivities")
   shareLinks ShareLink[]
+  apiKeys    ApiKey[]
 }
 
 model Session {
@@ -78,4 +79,16 @@ model Activity {
   createdAt DateTime     @default(now())
 
   @@index([createdAt])
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  label      String?
+  keyHash    String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
 }

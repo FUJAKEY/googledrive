@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { MoonStar, Sun, LogOut } from 'lucide-react';
+import { MoonStar, Sun, LogOut, Key } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { useAuth } from '../hooks/useAuth';
@@ -10,9 +10,17 @@ interface TopbarProps {
   onToggleTheme: () => void;
   theme: 'light' | 'dark';
   actions?: ReactNode;
+  onOpenApiKeys?: () => void;
 }
 
-export function Topbar({ search, onSearchChange, onToggleTheme, theme, actions }: TopbarProps) {
+export function Topbar({
+  search,
+  onSearchChange,
+  onToggleTheme,
+  theme,
+  actions,
+  onOpenApiKeys
+}: TopbarProps) {
   const { user, logout } = useAuth();
 
   return (
@@ -36,6 +44,16 @@ export function Topbar({ search, onSearchChange, onToggleTheme, theme, actions }
               className="rounded-full border border-slate-200 dark:border-slate-700"
             >
               {theme === 'light' ? <MoonStar className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onOpenApiKeys?.()}
+              className="rounded-full border border-slate-200 dark:border-slate-700"
+              disabled={!onOpenApiKeys}
+            >
+              <Key className="h-4 w-4" />
+              <span className="hidden sm:inline">API-ключи</span>
             </Button>
             <div className="hidden flex-col text-right text-sm lg:flex">
               <span className="font-semibold text-slate-800 dark:text-slate-100">{user?.name}</span>

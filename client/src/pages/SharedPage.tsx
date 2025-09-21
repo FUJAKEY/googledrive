@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Share2, Copy, Trash2, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Topbar } from '../components/Topbar';
+import { ApiKeysModal } from '../components/ApiKeysModal';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import type { ShareLink } from '../types';
@@ -21,6 +22,8 @@ export function SharedPage() {
     queryFn: () => authorizedFetch('/api/share'),
     staleTime: 1000 * 30
   });
+
+  const [isApiKeysOpen, setIsApiKeysOpen] = useState(false);
 
   const filteredLinks = (data?.links ?? []).filter((link) =>
     link.item?.name?.toLowerCase().includes(search.toLowerCase()) ?? false
@@ -46,6 +49,7 @@ export function SharedPage() {
         onSearchChange={setSearch}
         onToggleTheme={toggleTheme}
         theme={theme}
+        onOpenApiKeys={() => setIsApiKeysOpen(true)}
         actions={null}
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-32 pt-6 sm:px-8 lg:px-12">
@@ -107,6 +111,7 @@ export function SharedPage() {
           </div>
         </div>
       </div>
+      <ApiKeysModal isOpen={isApiKeysOpen} onClose={() => setIsApiKeysOpen(false)} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Recycle, Grid, View } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Topbar } from '../components/Topbar';
+import { ApiKeysModal } from '../components/ApiKeysModal';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import type { DriveItem, DriveListResponse } from '../types';
@@ -18,6 +19,7 @@ export function TrashPage() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [selectedItems, setSelectedItems] = useState<DriveItem[]>([]);
+  const [isApiKeysOpen, setIsApiKeysOpen] = useState(false);
 
   const { data, isLoading } = useQuery<DriveListResponse>({
     queryKey: ['trash', search],
@@ -131,6 +133,7 @@ export function TrashPage() {
         onSearchChange={setSearch}
         onToggleTheme={toggleTheme}
         theme={theme}
+        onOpenApiKeys={() => setIsApiKeysOpen(true)}
         actions={
           <div className="hidden items-center gap-2 lg:flex">
             <button
@@ -176,6 +179,7 @@ export function TrashPage() {
           <div className="mt-6">{renderContent()}</div>
         </div>
       </div>
+      <ApiKeysModal isOpen={isApiKeysOpen} onClose={() => setIsApiKeysOpen(false)} />
     </div>
   );
 }

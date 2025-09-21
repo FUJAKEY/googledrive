@@ -48,9 +48,25 @@ export interface DriveListResponse {
 
 export interface ActivityItem {
   id: string;
-  type: 'UPLOAD' | 'DELETE' | 'RESTORE' | 'SHARE_CREATE' | 'SHARE_DELETE' | 'RENAME' | 'MOVE';
+  type:
+    | 'UPLOAD'
+    | 'DELETE'
+    | 'RESTORE'
+    | 'SHARE_CREATE'
+    | 'SHARE_DELETE'
+    | 'RENAME'
+    | 'MOVE'
+    | 'API_KEY_CREATE'
+    | 'API_KEY_DELETE';
   itemId?: string | null;
   actorId?: string | null;
   message: string;
   createdAt: string;
+}
+
+export interface ApiKeySummary {
+  id: string;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
 }

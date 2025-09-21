@@ -19,7 +19,9 @@ export const ACTIVITY_TYPES = {
   SHARE_CREATE: 'SHARE_CREATE',
   SHARE_DELETE: 'SHARE_DELETE',
   RENAME: 'RENAME',
-  MOVE: 'MOVE'
+  MOVE: 'MOVE',
+  API_KEY_CREATE: 'API_KEY_CREATE',
+  API_KEY_DELETE: 'API_KEY_DELETE'
 } as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[keyof typeof ACTIVITY_TYPES];

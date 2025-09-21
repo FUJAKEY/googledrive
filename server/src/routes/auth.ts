@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { constants } from '../config.js';
 import { sanitizeUser, tokenUtils, hashToken } from '../lib/auth.js';
+import { requireAuth } from '../middleware/auth.js';
+import { apiKeysRouter } from './api-keys.js';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -17,6 +19,8 @@ const loginSchema = z.object({
 });
 
 export const authRouter = Router();
+
+authRouter.use('/api-keys', requireAuth, apiKeysRouter);
 
 authRouter.post('/register', async (req, res, next) => {
   try {
