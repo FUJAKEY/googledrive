@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: theme('colors.surface.light');
+  color: theme('colors.slate.900');
+}
+
+:root.dark {
+  color-scheme: dark;
+  background-color: theme('colors.surface.dark');
+  color: theme('colors.slate.100');
+}
+
+body {
+  @apply min-h-screen bg-surface-light text-slate-900 antialiased transition-colors duration-200 dark:bg-surface-dark dark:text-slate-100;
+}
+
+a {
+  @apply text-primary-500 hover:text-primary-600;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply rounded-full bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300/60 dark:bg-slate-700/60;
+}
+
+.card-glass {
+  @apply rounded-3xl border border-white/60 bg-white/70 shadow-lg backdrop-blur-lg dark:border-white/10 dark:bg-slate-900/70;
+}
